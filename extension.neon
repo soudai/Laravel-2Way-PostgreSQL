@@ -1,0 +1,24 @@
+parameters:
+    twowaySql:
+        manifests: []
+        sqlRoot: %currentWorkingDirectory%/resources/sql
+
+parametersSchema:
+    twowaySql: structure([
+        manifests: listOf(string()),
+        sqlRoot: string()
+    ])
+
+services:
+    -
+        class: Hft\TwoWaySql\StaticAnalysis\ContractCatalog
+        arguments:
+            manifests: %twowaySql.manifests%
+            sqlRoot: %twowaySql.sqlRoot%
+    - Hft\TwoWaySql\StaticAnalysis\ParameterCheck
+    -
+        class: Hft\TwoWaySql\StaticAnalysis\CallRule
+        tags: [phpstan.rules.rule]
+    -
+        class: Hft\TwoWaySql\StaticAnalysis\DaoRule
+        tags: [phpstan.rules.rule]
