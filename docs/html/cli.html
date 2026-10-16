@@ -271,6 +271,6 @@ php artisan twoway:inspect tests/sql/cases.json --connection=twoway_test --check
 </div><p>終了0は診断生成成功、2は設定不備・対象拒否・実行/JSONエラーです。EXPLAIN ANALYZEは提供しません。write、書込みCTE、SELECT INTO、locking、v2のfixture付きケースは拒否します。</p>
 <p>nodeType、cost、planRows、planWidth、children等だけを出し、SQL・条件式・table/index名・入力値は除きます。raw planは1 MiB、深さ32、256 nodes、出力64 KiBまで。costは実測ミリ秒ではなく、性能保証には使えません。計画時の関数評価等もあり得るので、隔離DBで実行します。</p></article><aside class="toc" aria-label="このページの目次"><strong>このページ</strong><ul><li><a href="#overview">コマンドの全体像</a></li><li><a href="#templates">lint / cache / clear</a></li><li><a href="#cases">check / coverage</a></li><li><a href="#generate">generate</a></li><li><a href="#generate-schema">generate-schema</a></li><li><a href="#inspect">inspect</a></li><li><a href="#explain">explain</a></li></ul></aside></div>
 <nav class="pagination" aria-label="前後のページ"><a href="code-generation.html">← DAO・Params・DTO生成</a><a href="postgresql.html">PostgreSQL固有機能 →</a></nav>
-<footer>Laravel-2Way-SQL 利用ガイド · 2026-10-16<br>実装基準: <a href="https://github.com/soudai/Laravel-2Way-SQL/tree/32c74669aeeb720dba1d99846dd052f4902837c4">32c7466</a> / 公開パッケージ: <a href="https://github.com/soudai/Laravel-2Way-PostgreSQL/tree/24029728677daff64f025cb969c4e51095358993">2402972</a>。PostgreSQL 19正式版の検証は未完了。</footer>
+<footer>Laravel-2Way-SQL 利用ガイド · 2026-10-16<br>実装基準（公開パッケージ）: <a href="https://github.com/soudai/Laravel-2Way-PostgreSQL/tree/24029728677daff64f025cb969c4e51095358993">2402972</a>。PostgreSQL 19正式版の検証は未完了。</footer>
 </main></div>
 </body></html>
