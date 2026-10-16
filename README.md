@@ -87,4 +87,4 @@ PHPStan拡張を利用する場合は、アプリ側にPHPStan 2.1.3以降の2.x
 
 ## ライセンス
 
-`proprietary`
+本パッケージは[MITライセンス](LICENSE)で提供します。

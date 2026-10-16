@@ -2,7 +2,7 @@
     "name": "soudai/laravel-2way-postgresql",
     "description": "PostgreSQL two-way SQL templates for Laravel",
     "type": "library",
-    "license": "proprietary",
+    "license": "MIT",
     "require": {
         "php": "~8.4.0 || ~8.5.0",
         "ext-pdo_pgsql": "*",

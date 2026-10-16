@@ -26,7 +26,7 @@
 composer require 'soudai/laravel-2way-postgresql:dev-main'
 php artisan vendor:publish --tag=twoway-sql-config
 </code></pre>
-</div><p>Packagistへの登録は前提にしていません。現時点では <code>dev-main</code> を指定し、導入したコミットはホストアプリの <code>composer.lock</code> で固定します。ライセンス設定は <code>proprietary</code> です。</p>
+</div><p>Packagistへの登録は前提にしていません。現時点では <code>dev-main</code> を指定し、導入したコミットはホストアプリの <code>composer.lock</code> で固定します。ライセンス設定は <a href="https://github.com/soudai/Laravel-2Way-PostgreSQL/blob/main/LICENSE"><code>MIT</code></a> です。</p>
 <p>パッケージ検出により <code>Hft\TwoWaySql\Laravel\TwoWaySqlServiceProvider</code> が自動登録されます。公開用Composer名とPHP名前空間は異なり、名前空間は <code>Hft\TwoWaySql</code> のままです。</p>
 <details>
 <p><summary>開発用Laravel-2Way-SQLをローカルで読み込む場合</summary></p>
