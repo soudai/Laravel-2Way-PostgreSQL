@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="厳密な取得件数、DTO、トランザクション、バッチ、ページング、逐次取得。">
+<title>取得・更新と実行API | Laravel-2Way-SQL</title>
+<link rel="stylesheet" href="assets/style.css">
+<script src="assets/search-index.js" defer></script>
+<script src="assets/docs.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#content">本文へ移動</a>
+<header class="topbar"><a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">2W</span><span>Laravel-2Way-SQL <small>/ 利用ガイド</small></span></a><a href="https://github.com/soudai/Laravel-2Way-PostgreSQL">配布リポジトリ ↗</a></header>
+<div class="layout">
+<aside class="sidebar"><details class="navigation" open><summary>ドキュメント目次・検索</summary>
+<div class="search-control" hidden><label for="doc-search">ドキュメントを検索</label><input id="doc-search" type="search" placeholder="API名・設定キー・単語" autocomplete="off" aria-controls="search-results"><p class="search-hint">Enter：検索結果へ / Esc：クリア</p></div>
+<nav aria-label="ガイドの章"><p class="nav-group">はじめに</p><ul><li><a href="index.html">概要・機能一覧</a></li><li><a href="getting-started.html">インストールと最初の実行</a></li></ul><p class="nav-group">使い方</p><ul><li><a href="templates.html">SQLテンプレート</a></li><li><a href="parameters.html">パラメータと型</a></li><li><a href="queries.html" aria-current="page">取得・更新と実行API</a></li></ul><p class="nav-group">リファレンス</p><ul><li><a href="configuration.html">設定・オプション一覧</a></li><li><a href="code-generation.html">DAO・Params・DTO生成</a></li><li><a href="cli.html">Artisan CLIリファレンス</a></li><li><a href="postgresql.html">PostgreSQL固有機能</a></li></ul><p class="nav-group">運用</p><ul><li><a href="operations.html">検証・デプロイ・運用</a></li><li><a href="troubleshooting.html">エラーとトラブルシューティング</a></li></ul></nav><p class="nav-note">PHP 8.4 / 8.5<br>Laravel 12 / 13<br>PostgreSQL 18 / 19 RC1</p>
+</details></aside>
+<main id="content" tabindex="-1">
+<section id="search-results" hidden aria-label="検索結果"><h2>検索結果</h2><p class="status" role="status" aria-live="polite"></p><ol></ol></section>
+<header class="page-header"><span class="chapter">05 / 11 · 使い方</span><h1>取得・更新と実行API</h1><p class="lead">厳密な取得件数、DTO、トランザクション、バッチ、ページング、逐次取得。</p></header>
+<div class="content-grid"><article aria-label="取得・更新と実行API"><h2 id="entrypoints">Facade・Manager・接続</h2>
+<p><code>Hft\TwoWaySql\Laravel\Facades\TwoWaySql</code> とDI可能な <code>Hft\TwoWaySql\Laravel\TwoWaySqlManager</code> は同じ操作を提供します。<code>connection(?string $name = null)</code> は新しいExecutorを返し、共有サービスの接続設定を変更しません。nullはLaravel既定接続です。</p>
+<p>以下の表では、<code>id</code> は登録SQL ID、<code>parameters</code> は連想配列または <code>SqlParameters</code>、<code>class</code> は結果DTOのクラス名です。</p>
+<h2 id="api">取得・更新API一覧</h2>
+<div class="table-scroll" tabindex="0" role="region" aria-label="横スクロールできる参照表"><table>
+<thead>
+<tr>
+<th scope="col">呼び出し</th>
+<th scope="col">kind</th>
+<th scope="col">返却値・契約</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>compile(id, parameters)</td>
+<td>各kind</td>
+<td>CompiledQuery。DB接続なし</td>
+</tr>
+<tr>
+<td>select(id, parameters)</td>
+<td>read / locking</td>
+<td>list&lt;stdClass&gt;。0件は空配列</td>
+</tr>
+<tr>
+<td>one(id, parameters)</td>
+<td>read / locking</td>
+<td>stdClass。厳密1行</td>
+</tr>
+<tr>
+<td>oneOrNull(id, parameters)</td>
+<td>read / locking</td>
+<td>0行はnull、1行はstdClass</td>
+</tr>
+<tr>
+<td>scalar(id, parameters)</td>
+<td>read / locking</td>
+<td>厳密1行1列。セルのNULLは許可</td>
+</tr>
+<tr>
+<td>execute(id, parameters)</td>
+<td>write</td>
+<td>int。実更新件数</td>
+</tr>
+<tr>
+<td>returning(id, parameters)</td>
+<td>write_returning</td>
+<td>list&lt;stdClass&gt;。0件は空配列</td>
+</tr>
+<tr>
+<td>selectAs(class, id, parameters)</td>
+<td>read / locking</td>
+<td>list&lt;DTO&gt;</td>
+</tr>
+<tr>
+<td>oneAs(class, id, parameters)</td>
+<td>read / locking</td>
+<td>DTO。厳密1行</td>
+</tr>
+<tr>
+<td>oneOrNullAs(class, id, parameters)</td>
+<td>read / locking</td>
+<td>0行はnull、1行はDTO</td>
+</tr>
+<tr>
+<td>returningAs(class, id, parameters)</td>
+<td>write_returning</td>
+<td>list&lt;DTO&gt;。変換失敗時は当該更新をrollback</td>
+</tr>
+<tr>
+<td>executeExpecting(id, parameters, expected)</td>
+<td>write</td>
+<td>int。期待件数が違えば当該操作をrollback</td>
+</tr>
+<tr>
+<td>batch(id, parameterSets, options)</td>
+<td>write</td>
+<td>BatchResult</td>
+</tr>
+<tr>
+<td>paginate(query, parameters, page)</td>
+<td>data/countともread</td>
+<td>PageResult</td>
+</tr>
+<tr>
+<td>each(id, parameters, consume, fetchSize=1000)</td>
+<td>read</td>
+<td>callbackへ渡した行数</td>
+</tr>
+<tr>
+<td>eachAs(class, id, parameters, consume, fetchSize=1000)</td>
+<td>read</td>
+<td>DTOをcallbackへ渡した行数</td>
+</tr>
+<tr>
+<td>withOptions(options)</td>
+<td>—</td>
+<td>実行オプションを持つ新しいExecutor</td>
+</tr>
+</tbody>
+</table>
+</div><p>kindの不一致は実行前に <code>TW_QUERY_KIND</code>。厳密件数の違反は <code>TW_CARDINALITY</code>。one系は取得後に件数を検証し、SQLへLIMITを追加しません。</p>
+<h2 id="compiled">CompiledQueryを調べる</h2>
+<p><code>sql()</code> がPDO向けSQL、<code>bindings()</code> が実行用の値配列です。公開プロパティには <code>sqlId</code>、<code>kind</code>、<code>hash</code>、<code>diagnostics</code>、<code>minimumPostgres</code> があります。bindingsには実値が入るので、本番のログへ出さないでください。</p>
+<h2 id="writes">更新とRETURNING</h2>
+<p>次の例は <code>users.rename</code> をwrite_returning、idをint64、nameをtextで登録します。</p>
+<div class="code-block"><div class="code-toolbar"><span>sql</span></div><pre tabindex="0"><code class="language-sql">UPDATE users SET name = /*:name*/'demo'
+WHERE id = /*:id*/1
+RETURNING id, name
+</code></pre>
+</div><div class="code-block"><div class="code-toolbar"><span>php</span></div><pre tabindex="0"><code class="language-php">use Hft\TwoWaySql\Laravel\Facades\TwoWaySql;
+
+$rows = TwoWaySql::connection('pgsql')-&gt;returning(
+    'users.rename', ['id' =&gt; 1, 'name' =&gt; 'Alice'],
+);
+</code></pre>
+</div><p>RETURNINGのないDMLは <code>kind=write</code> で登録してexecuteを呼びます。書き込みはwriter接続を使い、既存transactionに参加します。transactionがなければattempts=1で開始します。RETURNINGが0行でも、Laravelの変更済み・sticky状態は保守的に維持します。</p>
+<h2 id="transactions">トランザクションと期待件数</h2>
+<div class="code-block"><div class="code-toolbar"><span>php</span></div><pre tabindex="0"><code class="language-php">use Illuminate\Support\Facades\DB;
+use Hft\TwoWaySql\Laravel\Facades\TwoWaySql;
+
+DB::connection('pgsql')-&gt;transaction(function (): void {
+    $queries = TwoWaySql::connection('pgsql');
+    $queries-&gt;executeExpecting('users.update', [
+        'id' =&gt; 1, 'tenantId' =&gt; 10, 'version' =&gt; 0, 'name' =&gt; 'Alice',
+    ], 1);
+});
+</code></pre>
+</div><p><code>users.update</code> はwriteとして登録し、全入力を宣言した次のSQLを使用します。</p>
+<div class="code-block"><div class="code-toolbar"><span>sql</span></div><pre tabindex="0"><code class="language-sql">UPDATE users SET name = /*:name*/'demo', lock_version = lock_version + 1
+WHERE id = /*:id*/1 AND tenant_id = /*:tenantId*/1
+  AND lock_version = /*:version*/0
+</code></pre>
+</div><p>executeExpectingは0以上の期待件数を受け付け、違反時に <code>TW_AFFECTED_ROWS</code> を返します。外側transactionがある場合もsavepointを使うため、呼び出し側で例外をcatchしても当該変更は残りません。0件はID不存在やテナント不一致でも発生し、楽観ロック競合とは断定できません。</p>
+<p>通常のexecuteが既存transaction内でDBエラーになった場合、そのtransactionを自動復旧する契約ではありません。復旧境界が必要な処理にはexecuteExpectingや <a href="configuration.html#execution-options">実行scope</a> を使います。locking queryは同じ接続の既存transactionが必須です。</p>
+<h2 id="dto">結果DTO</h2>
+<div class="code-block"><div class="code-toolbar"><span>php</span></div><pre tabindex="0"><code class="language-php">&lt;?php
+namespace App\Data;
+
+final readonly class UserRow
+{
+    public function __construct(public int $id, public string $name) {}
+}
+</code></pre>
+</div><div class="code-block"><div class="code-toolbar"><span>php</span></div><pre tabindex="0"><code class="language-php">$rows = TwoWaySql::selectAs(\App\Data\UserRow::class, 'users.search', $parameters);
+</code></pre>
+</div><p>列aliasとpublic constructor引数を対応させます。欠落・余剰列、重複alias、NULL不許可、変換不能は <code>TW_MAPPING</code>。constructorの既定値で欠落列を補いません。int/string/bool、BackedEnum、DateTimeImmutable、range型、明示converter等を使えます。Eloquent Modelのhydrateは行いません。</p>
+<p>列名が違う場合は <code>Mapping\ColumnMap</code> を <code>Mapping\DtoMapper</code> に登録します。snake_caseの自動変換は既定で無効です。floatや独自型は明示converterを検討してください。returningAsはDTO変換までtransaction/savepointに含め、変換失敗時にその更新を戻します。</p>
+<h2 id="batch">バッチ</h2>
+<div class="code-block"><div class="code-toolbar"><span>php</span></div><pre tabindex="0"><code class="language-php">use Hft\TwoWaySql\Laravel\Batch\BatchOptions;
+
+$result = TwoWaySql::batch('users.update', $parameterSets,
+    new BatchOptions(atomic: true, maxItems: 1000, expectedRowsPerItem: 1),
+);
+</code></pre>
+</div><p>parameterSetsはiterableで、各要素が通常の入力スキーマに従います。<code>affectedRows</code> は各要素の更新件数の配列、<code>completedIndexes</code> は0始まりの処理済み位置、<code>committed</code> は実commit済みかを表します。合計は <code>array_sum($result-&gt;affectedRows)</code> で取得できます。外側transaction内なら成功してもcommitted=falseです。</p>
+<p>atomicの既定はtrue。falseは外側transactionがない場合だけ許可され、成功済みの要素を個別commitします。失敗時は停止し、<code>BatchException</code> の <code>failedIndex</code>、<code>completedIndexes</code>、<code>causeCode</code>、<code>sqlState</code> を確認できます。空iterableはSQLを実行しません。接続断時の失敗要素のcommit成否は不明になり得ます。</p>
+<h2 id="pagination">明示COUNTによるページング</h2>
+<div class="code-block"><div class="code-toolbar"><span>php</span></div><pre tabindex="0"><code class="language-php">use Hft\TwoWaySql\Laravel\Pagination\PageQuery;
+use Hft\TwoWaySql\Laravel\Pagination\PageRequest;
+
+$page = TwoWaySql::paginate(
+    new PageQuery('users.page', 'users.count'),
+    ['tenantId' =&gt; 10],
+    new PageRequest(page: 2, perPage: 20, maxPerPage: 100),
+);
+</code></pre>
+</div><p>data SQLには <code>_pageLimit</code> と <code>_pageOffset</code> を必須int64として宣言し、LIMIT/OFFSETへbindします。count SQLには検索条件だけを宣言します。入力から予約名を渡してはいけません。</p>
+<div class="code-block"><div class="code-toolbar"><span>sql</span></div><pre tabindex="0"><code class="language-sql">SELECT id, name FROM users WHERE tenant_id = /*:tenantId*/1
+ORDER BY id LIMIT /*:_pageLimit*/20 OFFSET /*:_pageOffset*/0
+</code></pre>
+</div><div class="code-block"><div class="code-toolbar"><span>sql</span></div><pre tabindex="0"><code class="language-sql">SELECT count(*) FROM users WHERE tenant_id = /*:tenantId*/1
+</code></pre>
+</div><p>COUNT→dataの順に同じ接続で実行します。返却は <code>rows / total / page / perPage / totalPages</code>。total=0ならtotalPages=0です。COUNTは厳密1行1列・非負整数。SQLの書換えでCOUNTを自動生成しません。両クエリのsnapshot一致が必要なら、アプリ側で同じ接続のREPEATABLE READ transactionを明示します。</p>
+<h2 id="streaming">カーソルによる逐次取得</h2>
+<div class="code-block"><div class="code-toolbar"><span>php</span></div><pre tabindex="0"><code class="language-php">$count = TwoWaySql::connection('reporting')-&gt;each(
+    'users.export', ['tenantId' =&gt; 10],
+    static function (\stdClass $row): bool {
+        // 1行ごとの処理。falseを返すとこの行までで停止。
+        return true;
+    },
+    fetchSize: 128,
+);
+</code></pre>
+</div><p>read専用。fetchSizeは1〜10000、既定1000です。PostgreSQLカーソルから分割取得し、全件取得・早期終了・例外のいずれでもcursorを閉じます。eachAsは同様にDTOを渡します。callback内で接続を切断したり、transactionをcommit/rollbackしないでください。</p>
+<p>分離reader PDOでは使用できないため、replicaへは専用のnamed connectionを作ります。メモリ上限はfetchSizeと行サイズに依存し、callbackでの全件保存や無制限なquery logまでは制限しません。外部出力はDB rollbackでは元に戻りません。</p></article><aside class="toc" aria-label="このページの目次"><strong>このページ</strong><ul><li><a href="#entrypoints">Facade・Manager・接続</a></li><li><a href="#api">取得・更新API一覧</a></li><li><a href="#compiled">CompiledQueryを調べる</a></li><li><a href="#writes">更新とRETURNING</a></li><li><a href="#transactions">トランザクションと期待件数</a></li><li><a href="#dto">結果DTO</a></li><li><a href="#batch">バッチ</a></li><li><a href="#pagination">明示COUNTによるページング</a></li><li><a href="#streaming">カーソルによる逐次取得</a></li></ul></aside></div>
+<nav class="pagination" aria-label="前後のページ"><a href="parameters.html">← パラメータと型</a><a href="configuration.html">設定・オプション一覧 →</a></nav>
+<footer>Laravel-2Way-SQL 利用ガイド · 2026-10-16<br>実装基準: <a href="https://github.com/soudai/Laravel-2Way-SQL/tree/32c74669aeeb720dba1d99846dd052f4902837c4">32c7466</a> / 公開パッケージ: <a href="https://github.com/soudai/Laravel-2Way-PostgreSQL/tree/24029728677daff64f025cb969c4e51095358993">2402972</a>。PostgreSQL 19正式版の検証は未完了。</footer>
+</main></div>
+</body></html>

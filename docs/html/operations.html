@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="キャッシュ、接続の選択、合成ケース、診断とログの運用。">
+<title>検証・デプロイ・運用 | Laravel-2Way-SQL</title>
+<link rel="stylesheet" href="assets/style.css">
+<script src="assets/search-index.js" defer></script>
+<script src="assets/docs.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#content">本文へ移動</a>
+<header class="topbar"><a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">2W</span><span>Laravel-2Way-SQL <small>/ 利用ガイド</small></span></a><a href="https://github.com/soudai/Laravel-2Way-PostgreSQL">配布リポジトリ ↗</a></header>
+<div class="layout">
+<aside class="sidebar"><details class="navigation" open><summary>ドキュメント目次・検索</summary>
+<div class="search-control" hidden><label for="doc-search">ドキュメントを検索</label><input id="doc-search" type="search" placeholder="API名・設定キー・単語" autocomplete="off" aria-controls="search-results"><p class="search-hint">Enter：検索結果へ / Esc：クリア</p></div>
+<nav aria-label="ガイドの章"><p class="nav-group">はじめに</p><ul><li><a href="index.html">概要・機能一覧</a></li><li><a href="getting-started.html">インストールと最初の実行</a></li></ul><p class="nav-group">使い方</p><ul><li><a href="templates.html">SQLテンプレート</a></li><li><a href="parameters.html">パラメータと型</a></li><li><a href="queries.html">取得・更新と実行API</a></li></ul><p class="nav-group">リファレンス</p><ul><li><a href="configuration.html">設定・オプション一覧</a></li><li><a href="code-generation.html">DAO・Params・DTO生成</a></li><li><a href="cli.html">Artisan CLIリファレンス</a></li><li><a href="postgresql.html">PostgreSQL固有機能</a></li></ul><p class="nav-group">運用</p><ul><li><a href="operations.html" aria-current="page">検証・デプロイ・運用</a></li><li><a href="troubleshooting.html">エラーとトラブルシューティング</a></li></ul></nav><p class="nav-note">PHP 8.4 / 8.5<br>Laravel 12 / 13<br>PostgreSQL 18 / 19 RC1</p>
+</details></aside>
+<main id="content" tabindex="-1">
+<section id="search-results" hidden aria-label="検索結果"><h2>検索結果</h2><p class="status" role="status" aria-live="polite"></p><ol></ol></section>
+<header class="page-header"><span class="chapter">10 / 11 · 運用</span><h1>検証・デプロイ・運用</h1><p class="lead">キャッシュ、接続の選択、合成ケース、診断とログの運用。</p></header>
+<div class="content-grid"><article aria-label="検証・デプロイ・運用"><h2 id="deployment">デプロイとASTキャッシュ</h2>
+<p>SQL・config・生成PHP・manifestを同じ版で配布します。キャッシュはSQLソースを置き換えるものではありません。</p>
+<div class="code-block"><div class="code-toolbar"><span>bash</span></div><pre tabindex="0"><code class="language-bash">php artisan twoway:lint
+php artisan twoway:generate --check
+# 雛形も生成している場合は、各対象を明示して --check する
+php artisan config:cache
+php artisan twoway:clear
+php artisan twoway:cache
+</code></pre>
+</div><p>DAO/manifestを利用しているアプリの例です。生成物を使わないアプリではgenerateの手順は不要です。生成物の差分は開発・ビルド環境でwriteしてレビューし、デプロイ時にはcheckで鮮度を確認します。</p>
+<p>SQLの内容hashで変更を検出するためmtimeだけには依存しません。SQL・設定・生成契約を変更したら、長寿命queue worker / Octane workerも再起動してください。AST cacheの書込み先と生成物は信頼済みユーザーだけが変更できるように管理します。</p>
+<h2 id="routing">read/writeと接続の選択</h2>
+<p>通常のreadはLaravelのreader、transaction中やsticky成立時はwriterを使用します。write / RETURNING / lockingはwriterです。未使用のwriterへ接続してreadを止めることはせず、実際に選択したPDOの設定を検証します。</p>
+<p>タイムアウト指定、plan advice、each/eachAsにはLaravel管理のtransaction scopeが必要です。別reader PDOに分離される構成では <code>TW_UNSUPPORTED</code> になるため、replica endpointを専用のnamed connectionへ登録します。ambient transactionやstickyでwriterが選ばれる場合は使用できます。</p>
+<h2 id="diagnostics">診断の有効化とリセット</h2>
+<div class="code-block"><div class="code-toolbar"><span>php</span></div><pre tabindex="0"><code class="language-php">'diagnostics' =&gt; [
+    'coverage' =&gt; true,
+    'execution' =&gt; true,
+    'max_sources' =&gt; 128,
+    'max_arms' =&gt; 100000,
+    'max_events' =&gt; 256,
+],
+</code></pre>
+</div><div class="code-block"><div class="code-toolbar"><span>php</span></div><pre tabindex="0"><code class="language-php">use Hft\TwoWaySql\Compiler\Trace\CoverageCollector;
+use Hft\TwoWaySql\Laravel\Diagnostics\ExecutionTrace;
+
+$coverage = app(CoverageCollector::class);
+$trace = app(ExecutionTrace::class);
+$branchReport = $coverage-&gt;snapshot();
+$events = $trace-&gt;snapshot();
+
+// アプリのrequest/job境界に合わせて実施
+$coverage-&gt;clear();
+$trace-&gt;clear();
+</code></pre>
+</div><p>coverageはSQL ID/source hashごとに分岐・loopの通過を記録します。source変更後の集計は混ぜません。上限による <code>truncated</code> / <code>evictedSources</code> がある場合は部分的な集計です。</p>
+<p>ExecutionTraceはSQL ID/hash、elapsedMicroseconds、行数、errorCode/SQLSTATE、通過分岐ID等を保持します。SQL本文・実入力・結果セルは保持しません。実行の診断であり、後段のoneの厳密件数検証や通常DTO変換の成功とは区別してください。</p>
+<h2 id="cases">合成ケースを作る</h2>
+<p><a href="getting-started.html#manifest">入門のdemo.value</a> に対応する <code>tests/sql/cases.json</code> の例です。</p>
+<div class="code-block"><div class="code-toolbar"><span>json</span></div><pre tabindex="0"><code class="language-json">{
+  "schema_version": "1.0",
+  "cases": [{
+    "id": "value_seven",
+    "query_id": "demo.value",
+    "parameters": {"value": 7},
+    "expected_pdo_sql": "SELECT ?::bigint AS value;",
+    "expected_bindings": [7],
+    "comparison": "tokens",
+    "expected_rows": [{"value": 7}]
+  }]
+}
+</code></pre>
+</div><div class="code-block"><div class="code-toolbar"><span>bash</span></div><pre tabindex="0"><code class="language-bash">php artisan twoway:check tests/sql/cases.json --json
+php artisan twoway:coverage tests/sql/cases.json --json
+</code></pre>
+</div><p>ここまではDBへ接続せず、expected_rowsは検査しません。comparisonはbytesまたはtokens。列値・型は厳密比較し、row_order=unorderedで行順だけを無視できます。期待エラーはexpected_errorとerror_phase=compile/executeを指定し、成功期待と混在させません。</p>
+<p>v2ではschema_versionを2.0にし、prepare（登録write）とassertions（登録read）を追加できます。各リストは20stepまで、準備の期待件数合計10000、assertionは1000行まで。対象writeのexpect_rowsで期待更新件数も指定できます。各ケースは準備→対象→事後照合を同じtransactionで行い、最後にrollbackします。v1のケースへv2専用フィールドを追加してはいけません。</p>
+<h2 id="test-database">隔離DBでの検証</h2>
+<p>check/coverageのexecute、inspect、explainには、通常アプリと別の使い捨てDBを使います。次を事前準備します。</p>
+<ol>
+<li>Laravelへ専用pgsql接続を登録する。read/write分離、URL、接続先overrideは指定しない。</li>
+<li>DB名はunderscore区切りでtestまたはtestingを含み、prod/production/liveを含めない。</li>
+<li>testing.connection、allowed_hosts、allowed_databasesを完全一致で登録する。</li>
+<li>環境ごとに32〜128桁の小文字hex nonceを生成し、環境設定とDB markerへ同じ値を設定する。</li>
+</ol>
+<div class="code-block"><div class="code-toolbar"><span>php</span></div><pre tabindex="0"><code class="language-php">'testing' =&gt; [
+    'connection' =&gt; 'twoway_test',
+    'allowed_hosts' =&gt; ['127.0.0.1'],
+    'allowed_databases' =&gt; ['twoway_sql_test'],
+    'nonce' =&gt; env('TWOWAY_TEST_NONCE'),
+],
+</code></pre>
+</div><p>DB準備処理で <code>public._twoway_case_marker</code> の <code>nonce</code> 列に唯一の行を置きます。CLIはmarkerを自動作成しません。nonceは例えば <code>bin2hex(random_bytes(16))</code> で生成し、Gitに保存しません。接続先の実DB名・nonceを照合してからSQLを送信します。</p>
+<div class="code-block"><div class="code-toolbar"><span>bash</span></div><pre tabindex="0"><code class="language-bash">php artisan twoway:check tests/sql/cases.json --execute --connection=twoway_test --json
+</code></pre>
+</div><p>外側transactionやpretend状態では実行できません。APP_ENVだけでは許可されません。成功・失敗ともrollbackしますが、sequence増加や外部関数の副作用までは戻せないので、実データを使わないでください。</p>
+<h2 id="logging">ログとアプリ側の責務</h2>
+<p>SQL・manifestを信頼済みコードとして管理し、入力をSQL断片へ連結しないでください。認可・テナント条件・SoftDeletes・更新ID・version条件・結果件数制限はSQLに記述します。</p>
+<p>パッケージの例外やtraceと、LaravelのQueryExecuted listener / query log / Telescope / APM / DBサーバーログは別経路です。ホスト側でもbindやDB例外本文を記録しないよう設定します。<code>CompiledQuery::bindings()</code>、JsonDocument::raw()等の明示取得値をログへ渡さないでください。</p>
+<h2 id="retries">接続断と再試行</h2>
+<p>パッケージは書き込みを自動再送しません。commit応答が失われた場合の成否やexactly-onceを保証しないため、業務側の冪等キー・状態照合手順で扱います。SQLSTATE 57014はquery canceled、55P03はlock unavailableで、timeoutだけを一意に表すものではありません。</p></article><aside class="toc" aria-label="このページの目次"><strong>このページ</strong><ul><li><a href="#deployment">デプロイとASTキャッシュ</a></li><li><a href="#routing">read/writeと接続の選択</a></li><li><a href="#diagnostics">診断の有効化とリセット</a></li><li><a href="#cases">合成ケースを作る</a></li><li><a href="#test-database">隔離DBでの検証</a></li><li><a href="#logging">ログとアプリ側の責務</a></li><li><a href="#retries">接続断と再試行</a></li></ul></aside></div>
+<nav class="pagination" aria-label="前後のページ"><a href="postgresql.html">← PostgreSQL固有機能</a><a href="troubleshooting.html">エラーとトラブルシューティング →</a></nav>
+<footer>Laravel-2Way-SQL 利用ガイド · 2026-10-16<br>実装基準: <a href="https://github.com/soudai/Laravel-2Way-SQL/tree/32c74669aeeb720dba1d99846dd052f4902837c4">32c7466</a> / 公開パッケージ: <a href="https://github.com/soudai/Laravel-2Way-PostgreSQL/tree/24029728677daff64f025cb969c4e51095358993">2402972</a>。PostgreSQL 19正式版の検証は未完了。</footer>
+</main></div>
+</body></html>

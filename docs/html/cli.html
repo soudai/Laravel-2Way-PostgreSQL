@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="全9コマンドの引数・オプション・DB接続要否・終了コード。">
+<title>Artisan CLIリファレンス | Laravel-2Way-SQL</title>
+<link rel="stylesheet" href="assets/style.css">
+<script src="assets/search-index.js" defer></script>
+<script src="assets/docs.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#content">本文へ移動</a>
+<header class="topbar"><a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">2W</span><span>Laravel-2Way-SQL <small>/ 利用ガイド</small></span></a><a href="https://github.com/soudai/Laravel-2Way-PostgreSQL">配布リポジトリ ↗</a></header>
+<div class="layout">
+<aside class="sidebar"><details class="navigation" open><summary>ドキュメント目次・検索</summary>
+<div class="search-control" hidden><label for="doc-search">ドキュメントを検索</label><input id="doc-search" type="search" placeholder="API名・設定キー・単語" autocomplete="off" aria-controls="search-results"><p class="search-hint">Enter：検索結果へ / Esc：クリア</p></div>
+<nav aria-label="ガイドの章"><p class="nav-group">はじめに</p><ul><li><a href="index.html">概要・機能一覧</a></li><li><a href="getting-started.html">インストールと最初の実行</a></li></ul><p class="nav-group">使い方</p><ul><li><a href="templates.html">SQLテンプレート</a></li><li><a href="parameters.html">パラメータと型</a></li><li><a href="queries.html">取得・更新と実行API</a></li></ul><p class="nav-group">リファレンス</p><ul><li><a href="configuration.html">設定・オプション一覧</a></li><li><a href="code-generation.html">DAO・Params・DTO生成</a></li><li><a href="cli.html" aria-current="page">Artisan CLIリファレンス</a></li><li><a href="postgresql.html">PostgreSQL固有機能</a></li></ul><p class="nav-group">運用</p><ul><li><a href="operations.html">検証・デプロイ・運用</a></li><li><a href="troubleshooting.html">エラーとトラブルシューティング</a></li></ul></nav><p class="nav-note">PHP 8.4 / 8.5<br>Laravel 12 / 13<br>PostgreSQL 18 / 19 RC1</p>
+</details></aside>
+<main id="content" tabindex="-1">
+<section id="search-results" hidden aria-label="検索結果"><h2>検索結果</h2><p class="status" role="status" aria-live="polite"></p><ol></ol></section>
+<header class="page-header"><span class="chapter">08 / 11 · リファレンス</span><h1>Artisan CLIリファレンス</h1><p class="lead">全9コマンドの引数・オプション・DB接続要否・終了コード。</p></header>
+<div class="content-grid"><article aria-label="Artisan CLIリファレンス"><h2 id="overview">コマンドの全体像</h2>
+<p>Laravelアプリでは <code>php artisan</code> から呼び出します。開発リポジトリにartisanはなく、Testbenchホストで検証するときは <code>vendor/bin/testbench</code> を使用します。以下のオプションはパッケージ固有のもので、Laravel共通の <code>--help</code> 等は省略しています。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="横スクロールできる参照表"><table>
+<thead>
+<tr>
+<th scope="col">コマンド</th>
+<th scope="col">役割</th>
+<th scope="col">DB接続</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>twoway:lint</td>
+<td>登録SQL全件の構文・宣言を検査</td>
+<td>なし</td>
+</tr>
+<tr>
+<td>twoway:cache</td>
+<td>検査してASTを温める</td>
+<td>なし</td>
+</tr>
+<tr>
+<td>twoway:clear</td>
+<td>設定したASTキャッシュを削除</td>
+<td>なし</td>
+</tr>
+<tr>
+<td>twoway:check</td>
+<td>合成ケースの期待値検証</td>
+<td>--execute時のみ</td>
+</tr>
+<tr>
+<td>twoway:coverage</td>
+<td>SQL分岐の通過・未通過を表示</td>
+<td>--execute時のみ</td>
+</tr>
+<tr>
+<td>twoway:generate</td>
+<td>DAOとmanifestを生成・比較</td>
+<td>なし</td>
+</tr>
+<tr>
+<td>twoway:generate-schema</td>
+<td>Params/DTO雛形を生成・比較</td>
+<td>なし</td>
+</tr>
+<tr>
+<td>twoway:inspect</td>
+<td>結果列metadata候補と差分</td>
+<td>隔離DB必須</td>
+</tr>
+<tr>
+<td>twoway:explain</td>
+<td>値を除いた推定計画を表示</td>
+<td>隔離DB必須</td>
+</tr>
+</tbody>
+</table>
+</div><h2 id="templates">lint / cache / clear</h2>
+<div class="code-block"><div class="code-toolbar"><span>bash</span></div><pre tabindex="0"><code class="language-bash">php artisan twoway:lint
+php artisan twoway:cache
+php artisan twoway:clear
+</code></pre>
+</div><p>固有の引数・オプションはありません。lint/cacheは成功0、検査失敗1。clearは正常完了0です。canonicalモードの <code>/* id */</code> のようなコメントにはlegacy-like警告が出ますが、値のバインドにはなりません。</p>
+<h2 id="cases">check / coverage</h2>
+<div class="code-block"><div class="code-toolbar"><span>bash</span></div><pre tabindex="0"><code class="language-bash">php artisan twoway:check tests/sql/cases.json --json
+php artisan twoway:coverage tests/sql/cases.json --json
+php artisan twoway:check tests/sql/cases.json --execute --connection=twoway_test --json
+</code></pre>
+</div><div class="table-scroll" tabindex="0" role="region" aria-label="横スクロールできる参照表"><table>
+<thead>
+<tr>
+<th scope="col">引数・オプション</th>
+<th scope="col">既定</th>
+<th scope="col">説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>cases</td>
+<td>必須</td>
+<td>バージョン付きJSONケースファイル</td>
+</tr>
+<tr>
+<td>--execute</td>
+<td>無効</td>
+<td>検証済み使い捨てDBで実行</td>
+</tr>
+<tr>
+<td>--connection=</td>
+<td>指定なし</td>
+<td>execute時に必須のテスト接続名</td>
+</tr>
+<tr>
+<td>--json</td>
+<td>無効</td>
+<td>値を含まないJSONレポート</td>
+</tr>
+</tbody>
+</table>
+</div><p>既定はcompile-onlyです。SQL・bindings・分岐期待を検査し、DB行・更新件数・execute段階の例外期待は照合しません。終了0は指定した段階の成功、1は不一致、2は入力・安全設定の不備です。</p>
+<p>coverageは未通過の分岐も一覧にします。PHPコードcoverageや入力全組合せの網羅性とは別です。ファイル上限は4 MiB、1000ケース、JSON深さ64。v1/v2の使い方は <a href="operations.html#cases">ケースの作成</a> を参照してください。</p>
+<h2 id="generate">generate</h2>
+<div class="code-block"><div class="code-toolbar"><span>bash</span></div><pre tabindex="0"><code class="language-bash">php artisan twoway:generate --dry-run
+php artisan twoway:generate --write
+php artisan twoway:generate --check
+</code></pre>
+</div><div class="table-scroll" tabindex="0" role="region" aria-label="横スクロールできる参照表"><table>
+<thead>
+<tr>
+<th scope="col">オプション</th>
+<th scope="col">意味</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>--dry-run</td>
+<td>差分を表示。省略時の既定動作</td>
+</tr>
+<tr>
+<td>--write</td>
+<td>検証した生成物を書き込む</td>
+</tr>
+<tr>
+<td>--check</td>
+<td>書かずに鮮度を検査し、差分があれば失敗</td>
+</tr>
+</tbody>
+</table>
+</div><p>3つのmodeは併用できません。dry-run/writeは成功0、不正2。dry-runは差分があっても0です。checkは一致0、差分1、不正・対象0件等は2になります。</p>
+<h2 id="generate-schema">generate-schema</h2>
+<div class="code-block"><div class="code-toolbar"><span>bash</span></div><pre tabindex="0"><code class="language-bash">php artisan twoway:generate-schema users.search --params=SearchParams --dto=UserRow --write
+</code></pre>
+</div><div class="table-scroll" tabindex="0" role="region" aria-label="横スクロールできる参照表"><table>
+<thead>
+<tr>
+<th scope="col">引数・オプション</th>
+<th scope="col">意味</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>query</td>
+<td>必須。登録SQL ID</td>
+</tr>
+<tr>
+<td>--params=</td>
+<td>入力クラスの短名</td>
+</tr>
+<tr>
+<td>--dto=</td>
+<td>結果クラスの短名</td>
+</tr>
+<tr>
+<td>--dry-run</td>
+<td>差分表示。既定</td>
+</tr>
+<tr>
+<td>--write</td>
+<td>検証済み雛形を書き込む</td>
+</tr>
+<tr>
+<td>--check</td>
+<td>選択した雛形の鮮度を検査</td>
+</tr>
+</tbody>
+</table>
+</div><p>params/dtoの少なくとも一方が必要です。modeの排他制約と終了コードはgenerateと同じです。他query/classの鮮度は確認しないので、CIで必要な対象を列挙します。</p>
+<h2 id="inspect">inspect</h2>
+<div class="code-block"><div class="code-toolbar"><span>bash</span></div><pre tabindex="0"><code class="language-bash">php artisan twoway:inspect tests/sql/cases.json --case=search --connection=twoway_test --against=UserRow
+php artisan twoway:inspect tests/sql/cases.json --connection=twoway_test --check --plan=tests/sql/inspection.json
+</code></pre>
+</div><div class="table-scroll" tabindex="0" role="region" aria-label="横スクロールできる参照表"><table>
+<thead>
+<tr>
+<th scope="col">引数・オプション</th>
+<th scope="col">意味</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>cases</td>
+<td>必須。合成入力を提供するJSONケース</td>
+</tr>
+<tr>
+<td>--case=</td>
+<td>通常modeで複数ケースがある場合は必須。単一ケースでは省略可</td>
+</tr>
+<tr>
+<td>--connection=</td>
+<td>必須。検証済みテスト接続</td>
+</tr>
+<tr>
+<td>--against=</td>
+<td>既存の生成DTO短名。通常modeでは任意</td>
+</tr>
+<tr>
+<td>--check</td>
+<td>metadataの差分・検証不能をCIで失敗扱い</td>
+</tr>
+<tr>
+<td>--plan=</td>
+<td>check用の全case IDとDTO/除外理由の対応JSON</td>
+</tr>
+</tbody>
+</table>
+</div><p>checkではcase指定を併用せず、againstまたはplanで比較先を示します。全ケースにDTOか明示除外理由が必要です。planの例:</p>
+<div class="code-block"><div class="code-toolbar"><span>json</span></div><pre tabindex="0"><code class="language-json">{
+  "schema_version": "1.0",
+  "cases": {"search": "UserRow"},
+  "exclusions": {"invalid_input": "入力エラーはtwoway:checkで検証"}
+}
+</code></pre>
+</div><p>通常modeは候補取得成功0（差分があっても0）、不備・実行失敗2。checkは一致0、差分1、不備・検証不能2です。出力はJSON。列alias・型候補・hash等を含み、結果行は含みません。NULL許容は常に不明です。</p>
+<p>SQLを実行してmetadataを取得します。LIMIT 0を自動付加しません。最大1000列。期待値照合はしないのでcheckを別途実行してください。readの合成ケースを使い、v2のprepare/assertions付きケースは渡せません。</p>
+<h2 id="explain">explain</h2>
+<div class="code-block"><div class="code-toolbar"><span>bash</span></div><pre tabindex="0"><code class="language-bash">php artisan twoway:explain tests/sql/cases.json --case=search --connection=twoway_test --timeout-ms=2000
+</code></pre>
+</div><div class="table-scroll" tabindex="0" role="region" aria-label="横スクロールできる参照表"><table>
+<thead>
+<tr>
+<th scope="col">引数・オプション</th>
+<th scope="col">既定 / 意味</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>cases</td>
+<td>必須。合成JSONケース</td>
+</tr>
+<tr>
+<td>--case=</td>
+<td>複数ケースなら必須。単一なら省略可</td>
+</tr>
+<tr>
+<td>--connection=</td>
+<td>必須。検証済みテスト接続</td>
+</tr>
+<tr>
+<td>--timeout-ms=</td>
+<td>1000。1〜60000msの計画時間上限</td>
+</tr>
+<tr>
+<td>--advice=</td>
+<td>未指定。登録済みplan advice ID、PG19専用</td>
+</tr>
+</tbody>
+</table>
+</div><p>終了0は診断生成成功、2は設定不備・対象拒否・実行/JSONエラーです。EXPLAIN ANALYZEは提供しません。write、書込みCTE、SELECT INTO、locking、v2のfixture付きケースは拒否します。</p>
+<p>nodeType、cost、planRows、planWidth、children等だけを出し、SQL・条件式・table/index名・入力値は除きます。raw planは1 MiB、深さ32、256 nodes、出力64 KiBまで。costは実測ミリ秒ではなく、性能保証には使えません。計画時の関数評価等もあり得るので、隔離DBで実行します。</p></article><aside class="toc" aria-label="このページの目次"><strong>このページ</strong><ul><li><a href="#overview">コマンドの全体像</a></li><li><a href="#templates">lint / cache / clear</a></li><li><a href="#cases">check / coverage</a></li><li><a href="#generate">generate</a></li><li><a href="#generate-schema">generate-schema</a></li><li><a href="#inspect">inspect</a></li><li><a href="#explain">explain</a></li></ul></aside></div>
+<nav class="pagination" aria-label="前後のページ"><a href="code-generation.html">← DAO・Params・DTO生成</a><a href="postgresql.html">PostgreSQL固有機能 →</a></nav>
+<footer>Laravel-2Way-SQL 利用ガイド · 2026-10-16<br>実装基準: <a href="https://github.com/soudai/Laravel-2Way-SQL/tree/32c74669aeeb720dba1d99846dd052f4902837c4">32c7466</a> / 公開パッケージ: <a href="https://github.com/soudai/Laravel-2Way-PostgreSQL/tree/24029728677daff64f025cb969c4e51095358993">2402972</a>。PostgreSQL 19正式版の検証は未完了。</footer>
+</main></div>
+</body></html>

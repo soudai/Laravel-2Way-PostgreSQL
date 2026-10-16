@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="必須キー・NULL・型の契約と、入力DTO・Codecの選び方。">
+<title>パラメータと型 | Laravel-2Way-SQL</title>
+<link rel="stylesheet" href="assets/style.css">
+<script src="assets/search-index.js" defer></script>
+<script src="assets/docs.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#content">本文へ移動</a>
+<header class="topbar"><a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">2W</span><span>Laravel-2Way-SQL <small>/ 利用ガイド</small></span></a><a href="https://github.com/soudai/Laravel-2Way-PostgreSQL">配布リポジトリ ↗</a></header>
+<div class="layout">
+<aside class="sidebar"><details class="navigation" open><summary>ドキュメント目次・検索</summary>
+<div class="search-control" hidden><label for="doc-search">ドキュメントを検索</label><input id="doc-search" type="search" placeholder="API名・設定キー・単語" autocomplete="off" aria-controls="search-results"><p class="search-hint">Enter：検索結果へ / Esc：クリア</p></div>
+<nav aria-label="ガイドの章"><p class="nav-group">はじめに</p><ul><li><a href="index.html">概要・機能一覧</a></li><li><a href="getting-started.html">インストールと最初の実行</a></li></ul><p class="nav-group">使い方</p><ul><li><a href="templates.html">SQLテンプレート</a></li><li><a href="parameters.html" aria-current="page">パラメータと型</a></li><li><a href="queries.html">取得・更新と実行API</a></li></ul><p class="nav-group">リファレンス</p><ul><li><a href="configuration.html">設定・オプション一覧</a></li><li><a href="code-generation.html">DAO・Params・DTO生成</a></li><li><a href="cli.html">Artisan CLIリファレンス</a></li><li><a href="postgresql.html">PostgreSQL固有機能</a></li></ul><p class="nav-group">運用</p><ul><li><a href="operations.html">検証・デプロイ・運用</a></li><li><a href="troubleshooting.html">エラーとトラブルシューティング</a></li></ul></nav><p class="nav-note">PHP 8.4 / 8.5<br>Laravel 12 / 13<br>PostgreSQL 18 / 19 RC1</p>
+</details></aside>
+<main id="content" tabindex="-1">
+<section id="search-results" hidden aria-label="検索結果"><h2>検索結果</h2><p class="status" role="status" aria-live="polite"></p><ol></ol></section>
+<header class="page-header"><span class="chapter">04 / 11 · 使い方</span><h1>パラメータと型</h1><p class="lead">必須キー・NULL・型の契約と、入力DTO・Codecの選び方。</p></header>
+<div class="content-grid"><article aria-label="パラメータと型"><h2 id="schema">入力は宣言済みのキーだけ</h2>
+<p><code>queries.&lt;SQL ID&gt;.parameters</code> に型を宣言し、呼び出し時は連想配列か <code>SqlParameters</code> 実装を渡します。宣言したキーはnullableでも必須です。余分なキー、型違い、必須キーの欠落はSQL実行前に拒否します。</p>
+<div class="code-block"><div class="code-toolbar"><span>php</span></div><pre tabindex="0"><code class="language-php">// 宣言
+'filter.name' =&gt; ['type' =&gt; 'text', 'nullable' =&gt; true, 'max_bytes' =&gt; 200],
+// 入力
+['filter' =&gt; ['name' =&gt; null]]
+</code></pre>
+</div><p>dot pathはネストした配列で渡します。<code>['filter.name'=&gt;null]</code> や <code>['filter'=&gt;[]]</code> は無効です。非選択の分岐でも同じ検証を行います。例外は <code>patch&lt;record&gt;</code> の内部フィールドで、省略を「更新しない」として扱います。</p>
+<h2 id="types">組込み型</h2>
+<div class="table-scroll" tabindex="0" role="region" aria-label="横スクロールできる参照表"><table>
+<thead>
+<tr>
+<th scope="col">type</th>
+<th scope="col">PHPで渡す値</th>
+<th scope="col">注意点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>int64</td>
+<td>int</td>
+<td>数値文字列・floatの暗黙変換なし。min/maxを設定可能</td>
+</tr>
+<tr>
+<td>text</td>
+<td>string</td>
+<td>UTF-8、NUL不可。max_bytesで制限</td>
+</tr>
+<tr>
+<td>bool</td>
+<td>bool</td>
+<td>0/1や文字列ではなくtrue/false</td>
+</tr>
+<tr>
+<td>uuid</td>
+<td>UUID文字列</td>
+<td>形式を検査</td>
+</tr>
+<tr>
+<td>decimal</td>
+<td>十進文字列</td>
+<td>floatへ変換しない</td>
+</tr>
+<tr>
+<td>jsonb</td>
+<td>JSONとして扱うPHP値、JsonValue</td>
+<td>SQL NULLとJSON nullを区別</td>
+</tr>
+<tr>
+<td>date</td>
+<td>日付文字列</td>
+<td>例: 2026-01-01</td>
+</tr>
+<tr>
+<td>timestamp</td>
+<td>timezoneなしの日時文字列</td>
+<td>YYYY-MM-DD HH:MM:SS.ffffff。6桁の小数部が必須</td>
+</tr>
+<tr>
+<td>timestamptz</td>
+<td>DateTimeInterface</td>
+<td>明示した時刻の瞬間・microsecondsを保持</td>
+</tr>
+<tr>
+<td>list&lt;int64&gt; / list&lt;text&gt; / list&lt;uuid&gt;</td>
+<td>list配列</td>
+<td>IN/NOT INで要素数分のbindを生成</td>
+</tr>
+<tr>
+<td>pg_array&lt;int64/text/uuid/bool/decimal&gt;</td>
+<td>対応型のlist配列</td>
+<td>型名の <code>/</code> は選択肢。実際はpg_array&lt;int64&gt;等を指定</td>
+</tr>
+<tr>
+<td>list&lt;record&gt;</td>
+<td>連想配列のlist</td>
+<td>fieldsを宣言し、ループで利用</td>
+</tr>
+<tr>
+<td>patch&lt;record&gt;</td>
+<td>更新するfieldだけの連想配列</td>
+<td>fields・columnを宣言。rootはNULL不可</td>
+</tr>
+<tr>
+<td>daterange / tstzrange</td>
+<td>DateRange / TstzRange</td>
+<td>空range・無限端点・SQL NULLを区別</td>
+</tr>
+<tr>
+<td>codec:ID</td>
+<td>登録Codecの入力型</td>
+<td>信頼済みProviderで事前登録</td>
+</tr>
+</tbody>
+</table>
+</div><h2 id="options">スキーマオプション</h2>
+<div class="table-scroll" tabindex="0" role="region" aria-label="横スクロールできる参照表"><table>
+<thead>
+<tr>
+<th scope="col">キー</th>
+<th scope="col">適用先</th>
+<th scope="col">既定 / 意味</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>type</td>
+<td>全て</td>
+<td>必須。型名</td>
+</tr>
+<tr>
+<td>nullable</td>
+<td>全て（patch rootは不可）</td>
+<td>false。PHP nullをSQL NULLとして許可</td>
+</tr>
+<tr>
+<td>min / max</td>
+<td>int64</td>
+<td>指定なし。整数の範囲制約</td>
+</tr>
+<tr>
+<td>max_bytes</td>
+<td>text</td>
+<td>個別指定なし。0以上のbyte数。全体のlimitsは別に適用</td>
+</tr>
+<tr>
+<td>elements_nullable</td>
+<td>pg_array</td>
+<td>false。配列中のNULL要素を許可</td>
+</tr>
+<tr>
+<td>fields</td>
+<td>list&lt;record&gt; / patch&lt;record&gt;</td>
+<td>必須。非空のフィールド定義</td>
+</tr>
+<tr>
+<td>column / protected</td>
+<td>patchの各field</td>
+<td>更新列名は必須。保護の既定は列名・field名による</td>
+</tr>
+</tbody>
+</table>
+</div><p>未知のオプションや、その型に適用できないオプションはエラーになります。</p>
+<h2 id="arrays">INリストとPostgreSQL配列</h2>
+<div class="code-block"><div class="code-toolbar"><span>sql</span></div><pre tabindex="0"><code class="language-sql">-- list&lt;int64&gt;: [1, 2] は2個のbind。空配列の展開はエラー
+SELECT id FROM users WHERE id IN /*:ids*/(1, 2)
+</code></pre>
+</div><div class="code-block"><div class="code-toolbar"><span>sql</span></div><pre tabindex="0"><code class="language-sql">-- pg_array&lt;int64&gt;: 配列全体を1個のbind。空配列も利用可能
+SELECT id FROM users WHERE id = ANY(/*:ids*/'{1,2}'::bigint[])
+</code></pre>
+</div><p>同じPHP配列でも宣言型によって意味が変わります。SQL NULLの配列、空配列、NULL要素だけの配列を混同しないでください。配列の結果も型付きで扱う場合は <a href="postgresql.html#typed-arrays">標準PostgreSQL Codec</a> を使用します。</p>
+<h2 id="json">JSONと精度</h2>
+<p>nullableなjsonbにPHP nullを渡すとSQL NULL。JSON nullは明示的に <code>Hft\TwoWaySql\Parameter\JsonValue::null()</code> を使います。PHP値としての数値精度を保持できない場合は、最初から十進数の原文を保つ <a href="postgresql.html#json-document">JsonDocument</a> を選んでください。</p>
+<h2 id="like">LIKE検索</h2>
+<div class="code-block"><div class="code-toolbar"><span>php</span></div><pre tabindex="0"><code class="language-php">use Hft\TwoWaySql\Parameter\LikePattern;
+
+$parameters = ['pattern' =&gt; LikePattern::contains('20%_off')];
+</code></pre>
+</div><div class="code-block"><div class="code-toolbar"><span>sql</span></div><pre tabindex="0"><code class="language-sql">SELECT id FROM users WHERE name LIKE /*:pattern*/'%demo%' ESCAPE '!'
+</code></pre>
+</div><p>patternはtextとして宣言します。contains / startsWith / endsWithが <code>%</code>、<code>_</code>、<code>!</code> をエスケープします。SQL側の <code>ESCAPE '!'</code> と組み合わせて使用してください。</p>
+<h2 id="input-dto">入力DTO</h2>
+<div class="code-block"><div class="code-toolbar"><span>php</span></div><pre tabindex="0"><code class="language-php">&lt;?php
+namespace App\Queries;
+
+use Hft\TwoWaySql\Contracts\SqlParameters;
+
+final readonly class SearchParams implements SqlParameters
+{
+    public function __construct(public int $tenantId, public ?string $name) {}
+
+    public function toSqlParameters(): array
+    {
+        return ['tenantId' =&gt; $this-&gt;tenantId, 'name' =&gt; $this-&gt;name];
+    }
+}
+</code></pre>
+</div><p>Manager/Executorはこの明示変換を呼び、戻り値を通常のスキーマで検証します。任意オブジェクトのgetter・magic propertyを自動探索しません。DAO生成で使う入力DTOには <a href="code-generation.html#dao">codegen.parameters</a> の対応宣言も必要です。</p>
+<h2 id="codecs">拡張Codec</h2>
+<p>ServiceProviderのbootで <code>CodecRegistry::register(id, ParameterCodec)</code> を使うと入力用Codecを追加できます。入力と結果を同じ型で扱う場合は <code>registerType(TypeDescriptor, ParameterCodec, ColumnConverter)</code> を使います。</p>
+<p>Codec IDは小文字で始まる英数字・<code>_.-</code>、1〜64文字、最大256登録。同じIDを上書きできません。SQLの型castはSQL側に固定し、IDからSQL断片を生成しません。Codecは値や接続を共有状態に保持せず、副作用のない決定的な変換にしてください。</p>
+<p>型の共有、標準配列、JSON文書、multirangeの例は <a href="postgresql.html#registration">PostgreSQL機能</a> を参照してください。</p></article><aside class="toc" aria-label="このページの目次"><strong>このページ</strong><ul><li><a href="#schema">入力は宣言済みのキーだけ</a></li><li><a href="#types">組込み型</a></li><li><a href="#options">スキーマオプション</a></li><li><a href="#arrays">INリストとPostgreSQL配列</a></li><li><a href="#json">JSONと精度</a></li><li><a href="#like">LIKE検索</a></li><li><a href="#input-dto">入力DTO</a></li><li><a href="#codecs">拡張Codec</a></li></ul></aside></div>
+<nav class="pagination" aria-label="前後のページ"><a href="templates.html">← SQLテンプレート</a><a href="queries.html">取得・更新と実行API →</a></nav>
+<footer>Laravel-2Way-SQL 利用ガイド · 2026-10-16<br>実装基準: <a href="https://github.com/soudai/Laravel-2Way-SQL/tree/32c74669aeeb720dba1d99846dd052f4902837c4">32c7466</a> / 公開パッケージ: <a href="https://github.com/soudai/Laravel-2Way-PostgreSQL/tree/24029728677daff64f025cb969c4e51095358993">2402972</a>。PostgreSQL 19正式版の検証は未完了。</footer>
+</main></div>
+</body></html>

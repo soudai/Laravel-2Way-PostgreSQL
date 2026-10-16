@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="SQLファイルを中心に、LaravelとPostgreSQLをつなぐための利用ガイド。">
+<title>概要・機能一覧 | Laravel-2Way-SQL</title>
+<link rel="stylesheet" href="assets/style.css">
+<script src="assets/search-index.js" defer></script>
+<script src="assets/docs.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#content">本文へ移動</a>
+<header class="topbar"><a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">2W</span><span>Laravel-2Way-SQL <small>/ 利用ガイド</small></span></a><a href="https://github.com/soudai/Laravel-2Way-PostgreSQL">配布リポジトリ ↗</a></header>
+<div class="layout">
+<aside class="sidebar"><details class="navigation" open><summary>ドキュメント目次・検索</summary>
+<div class="search-control" hidden><label for="doc-search">ドキュメントを検索</label><input id="doc-search" type="search" placeholder="API名・設定キー・単語" autocomplete="off" aria-controls="search-results"><p class="search-hint">Enter：検索結果へ / Esc：クリア</p></div>
+<nav aria-label="ガイドの章"><p class="nav-group">はじめに</p><ul><li><a href="index.html" aria-current="page">概要・機能一覧</a></li><li><a href="getting-started.html">インストールと最初の実行</a></li></ul><p class="nav-group">使い方</p><ul><li><a href="templates.html">SQLテンプレート</a></li><li><a href="parameters.html">パラメータと型</a></li><li><a href="queries.html">取得・更新と実行API</a></li></ul><p class="nav-group">リファレンス</p><ul><li><a href="configuration.html">設定・オプション一覧</a></li><li><a href="code-generation.html">DAO・Params・DTO生成</a></li><li><a href="cli.html">Artisan CLIリファレンス</a></li><li><a href="postgresql.html">PostgreSQL固有機能</a></li></ul><p class="nav-group">運用</p><ul><li><a href="operations.html">検証・デプロイ・運用</a></li><li><a href="troubleshooting.html">エラーとトラブルシューティング</a></li></ul></nav><p class="nav-note">PHP 8.4 / 8.5<br>Laravel 12 / 13<br>PostgreSQL 18 / 19 RC1</p>
+</details></aside>
+<main id="content" tabindex="-1">
+<section id="search-results" hidden aria-label="検索結果"><h2>検索結果</h2><p class="status" role="status" aria-live="polite"></p><ol></ol></section>
+<header class="page-header"><span class="chapter">01 / 11 · はじめに</span><h1>概要・機能一覧</h1><p class="lead">SQLファイルを中心に、LaravelとPostgreSQLをつなぐための利用ガイド。</p></header>
+<div class="content-grid"><article aria-label="概要・機能一覧"><div class="hero-grid">
+<div><span class="eyebrow">SQL-FIRST · LARAVEL · POSTGRESQL</span><p class="hero-line">SQLを、そのまま<br>アプリケーションへ。</p><p>DBクライアントではサンプル値で実行し、Laravelでは同じSQLファイルに入力をバインド。複雑な検索・集計・更新を、SQLとして管理できます。</p><a class="button" href="getting-started.html">最初のクエリを実行する <span aria-hidden="true">→</span></a></div>
+<div class="flow" aria-label="実行の流れ"><span>01 / resources/sql</span><strong>SQLテンプレート</strong><span>02 / config/twoway-sql.php</span><strong>入力型と実行種別を宣言</strong><span>03 / TwoWaySql</span><strong>バインドしてLaravel接続で実行</strong></div>
+</div>
+
+<h2 id="features">このパッケージでできること</h2>
+<div class="table-scroll" tabindex="0" role="region" aria-label="横スクロールできる参照表"><table>
+<thead>
+<tr>
+<th scope="col">目的</th>
+<th scope="col">機能</th>
+<th scope="col">読むページ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SQLファイルをアプリで再利用</td>
+<td>値・INリストのバインド、条件分岐、WHERE/HAVING/SET補正</td>
+<td><a href="templates.html">SQLテンプレート</a></td>
+</tr>
+<tr>
+<td>入力を宣言どおりに扱う</td>
+<td>型・NULL・余剰キー検証、日時・JSON・配列・range</td>
+<td><a href="parameters.html">パラメータと型</a></td>
+</tr>
+<tr>
+<td>取得・更新の契約を明示</td>
+<td>厳密な件数、RETURNING、DTO、期待更新件数、バッチ</td>
+<td><a href="queries.html">実行API</a></td>
+</tr>
+<tr>
+<td>大量データを扱う</td>
+<td>明示COUNTページング、カーソルによる逐次取得</td>
+<td><a href="queries.html#pagination">ページング・逐次取得</a></td>
+</tr>
+<tr>
+<td>入力から選べるSQL構造を限定</td>
+<td>登録ソート、列選択、部分更新</td>
+<td><a href="templates.html#sort">構造の選択</a></td>
+</tr>
+<tr>
+<td>型付きの呼び出し口を作る</td>
+<td>Attributes DAO、Params/DTO生成、PHPStan拡張</td>
+<td><a href="code-generation.html">コード生成</a></td>
+</tr>
+<tr>
+<td>デプロイ前に確認</td>
+<td>lint、生成物の差分、ケース検証、分岐coverage、結果metadata</td>
+<td><a href="cli.html">CLIリファレンス</a></td>
+</tr>
+<tr>
+<td>PostgreSQL固有の表現を使う</td>
+<td>MERGE、OLD/NEW、配列・JSONB・multirange、19のplan advice</td>
+<td><a href="postgresql.html">PostgreSQL機能</a></td>
+</tr>
+</tbody>
+</table>
+</div><h2 id="requirements">対応環境</h2>
+<div class="table-scroll" tabindex="0" role="region" aria-label="横スクロールできる参照表"><table>
+<thead>
+<tr>
+<th scope="col">項目</th>
+<th scope="col">条件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PHP</td>
+<td>8.4 / 8.5、64bit、pdo_pgsql・mbstring拡張</td>
+</tr>
+<tr>
+<td>Laravel / Illuminate</td>
+<td>12.x / 13.x</td>
+</tr>
+<tr>
+<td>PostgreSQL</td>
+<td>18 / 19。19はRC1で先行検証済み、正式版の検証は未完了</td>
+</tr>
+<tr>
+<td>接続</td>
+<td>Laravel管理のpgsql接続、native prepares、PDO例外モード</td>
+</tr>
+<tr>
+<td>文字・セッション</td>
+<td>UTF8、standard_conforming_strings=on</td>
+</tr>
+</tbody>
+</table>
+</div><p>このガイドは実装済みのM4機能を含みます。現行コードの対象はPostgreSQL 18以降で、17には接続しません。19専用SQLにはクエリ単位のバージョン宣言が必要です。</p>
+<h2 id="reading">読み進め方</h2>
+<div class="cards">
+<a href="getting-started.html"><span>01 / START</span><strong>まず1つ動かす</strong><p>Composer導入、接続設定、SQL登録、実行まで。</p></a>
+<a href="templates.html"><span>02 / BUILD</span><strong>業務SQLを書く</strong><p>条件分岐、ループ、型、取得・更新API。</p></a>
+<a href="configuration.html"><span>03 / REFERENCE</span><strong>設定を調べる</strong><p>全設定項目、既定値、実行オプション、上限。</p></a>
+<a href="operations.html"><span>04 / OPERATE</span><strong>検証して運用する</strong><p>ケース検証、キャッシュ、診断、デプロイ。</p></a>
+</div>
+
+<h2 id="boundaries">アプリケーションが決めること</h2>
+<p>Eloquentと併用できますが、Global Scope、認可、テナント条件、SoftDeletes、取得件数制限は自動適用されません。SQLに明記してください。任意のユーザー投稿SQLを実行するための機能ではありません。</p>
+<p>SQLからの完全な型推論、COUNT SQLの自動生成、書き込みの自動再試行、他DB対応、Domaの完全互換は提供しません。静的SQL断片のinclude・COPY・WAIT FOR LSNは設計試作のみで、公開APIには含まれません。</p>
+<h2 id="offline">このHTMLの使い方</h2>
+<p>このフォルダをそのまま取得し、<code>index.html</code> をブラウザで開いてください。ネットワークやビルドは不要です。左の検索で本文・API名・設定キーを探せます。JavaScriptを無効にしても本文とページ移動は利用できます。印刷時は本文中心のレイアウトになります。</p></article><aside class="toc" aria-label="このページの目次"><strong>このページ</strong><ul><li><a href="#features">このパッケージでできること</a></li><li><a href="#requirements">対応環境</a></li><li><a href="#reading">読み進め方</a></li><li><a href="#boundaries">アプリケーションが決めること</a></li><li><a href="#offline">このHTMLの使い方</a></li></ul></aside></div>
+<nav class="pagination" aria-label="前後のページ"><span></span><a href="getting-started.html">インストールと最初の実行 →</a></nav>
+<footer>Laravel-2Way-SQL 利用ガイド · 2026-10-16<br>実装基準: <a href="https://github.com/soudai/Laravel-2Way-SQL/tree/32c74669aeeb720dba1d99846dd052f4902837c4">32c7466</a> / 公開パッケージ: <a href="https://github.com/soudai/Laravel-2Way-PostgreSQL/tree/24029728677daff64f025cb969c4e51095358993">2402972</a>。PostgreSQL 19正式版の検証は未完了。</footer>
+</main></div>
+</body></html>

@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="設定キーの既定値、入力制約、実行オプションを一か所で確認。">
+<title>設定・オプション一覧 | Laravel-2Way-SQL</title>
+<link rel="stylesheet" href="assets/style.css">
+<script src="assets/search-index.js" defer></script>
+<script src="assets/docs.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#content">本文へ移動</a>
+<header class="topbar"><a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">2W</span><span>Laravel-2Way-SQL <small>/ 利用ガイド</small></span></a><a href="https://github.com/soudai/Laravel-2Way-PostgreSQL">配布リポジトリ ↗</a></header>
+<div class="layout">
+<aside class="sidebar"><details class="navigation" open><summary>ドキュメント目次・検索</summary>
+<div class="search-control" hidden><label for="doc-search">ドキュメントを検索</label><input id="doc-search" type="search" placeholder="API名・設定キー・単語" autocomplete="off" aria-controls="search-results"><p class="search-hint">Enter：検索結果へ / Esc：クリア</p></div>
+<nav aria-label="ガイドの章"><p class="nav-group">はじめに</p><ul><li><a href="index.html">概要・機能一覧</a></li><li><a href="getting-started.html">インストールと最初の実行</a></li></ul><p class="nav-group">使い方</p><ul><li><a href="templates.html">SQLテンプレート</a></li><li><a href="parameters.html">パラメータと型</a></li><li><a href="queries.html">取得・更新と実行API</a></li></ul><p class="nav-group">リファレンス</p><ul><li><a href="configuration.html" aria-current="page">設定・オプション一覧</a></li><li><a href="code-generation.html">DAO・Params・DTO生成</a></li><li><a href="cli.html">Artisan CLIリファレンス</a></li><li><a href="postgresql.html">PostgreSQL固有機能</a></li></ul><p class="nav-group">運用</p><ul><li><a href="operations.html">検証・デプロイ・運用</a></li><li><a href="troubleshooting.html">エラーとトラブルシューティング</a></li></ul></nav><p class="nav-note">PHP 8.4 / 8.5<br>Laravel 12 / 13<br>PostgreSQL 18 / 19 RC1</p>
+</details></aside>
+<main id="content" tabindex="-1">
+<section id="search-results" hidden aria-label="検索結果"><h2>検索結果</h2><p class="status" role="status" aria-live="polite"></p><ol></ol></section>
+<header class="page-header"><span class="chapter">06 / 11 · リファレンス</span><h1>設定・オプション一覧</h1><p class="lead">設定キーの既定値、入力制約、実行オプションを一か所で確認。</p></header>
+<div class="content-grid"><article aria-label="設定・オプション一覧"><h2 id="file">設定ファイル</h2>
+<p><code>php artisan vendor:publish --tag=twoway-sql-config</code> で <code>config/twoway-sql.php</code> を作成します。configはキャッシュ可能な配列・scalar値で管理し、Closureやサービスinstanceは置きません。変更後はアプリのconfig cacheを更新します。</p>
+<h2 id="general">トップレベルとキャッシュ</h2>
+<div class="table-scroll" tabindex="0" role="region" aria-label="横スクロールできる参照表"><table>
+<thead>
+<tr>
+<th scope="col">キー</th>
+<th scope="col">既定値</th>
+<th scope="col">説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>root</td>
+<td>resource_path('sql')</td>
+<td>SQLルート。実在ディレクトリが必要。symlink不可</td>
+</tr>
+<tr>
+<td>grammar</td>
+<td>canonical-v1</td>
+<td>Laravel統合の既定。別文法は各queryに指定</td>
+</tr>
+<tr>
+<td>queries</td>
+<td>[]</td>
+<td>SQL ID → クエリ定義</td>
+</tr>
+<tr>
+<td>limits</td>
+<td>[]</td>
+<td>コンパイル・入力予算の正整数による上書き</td>
+</tr>
+<tr>
+<td>cache.path</td>
+<td>storage_path('framework/cache/twoway-sql')</td>
+<td>専用ASTキャッシュディレクトリ</td>
+</tr>
+<tr>
+<td>cache.entries</td>
+<td>256</td>
+<td>メモリLRUの最大件数。正整数</td>
+</tr>
+<tr>
+<td>cache.bytes</td>
+<td>67108864</td>
+<td>メモリLRUのJSON換算byte予算（64 MiB）。正整数</td>
+</tr>
+<tr>
+<td>plan_advice</td>
+<td>[]</td>
+<td>信頼済みID → query_id / query_hash / advice</td>
+</tr>
+</tbody>
+</table>
+</div><p>キャッシュはASTのみです。SQLソースの配布も必要で、結果キャッシュとしては使いません。</p>
+<h2 id="queries">クエリ登録</h2>
+<div class="table-scroll" tabindex="0" role="region" aria-label="横スクロールできる参照表"><table>
+<thead>
+<tr>
+<th scope="col">キー</th>
+<th scope="col">必須 / 既定</th>
+<th scope="col">説明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>path</td>
+<td>必須</td>
+<td>rootからの相対.sql。各パス部は英数字・underscore・hyphen</td>
+</tr>
+<tr>
+<td>kind</td>
+<td>必須</td>
+<td>read / locking / write / write_returning</td>
+</tr>
+<tr>
+<td>parameters</td>
+<td>必須</td>
+<td>入力スキーマ。入力なしなら空配列</td>
+</tr>
+<tr>
+<td>sorts</td>
+<td>[]</td>
+<td>text入力の登録ソート定義</td>
+</tr>
+<tr>
+<td>projections</td>
+<td>[]</td>
+<td>text入力の登録列選択</td>
+</tr>
+<tr>
+<td>grammar</td>
+<td>canonical-v1</td>
+<td>canonical-v1 または doma-subset-v1</td>
+</tr>
+<tr>
+<td>postgres_min_version</td>
+<td>18</td>
+<td>整数18または19。実行するPDOで最低版を検証</td>
+</tr>
+</tbody>
+</table>
+</div><p>SQL IDは小文字の英字で始まる英小文字・数字・underscoreの区切りをdotで連結し、最大128bytes。例は <code>users.search</code>。未知キー、未登録ID、絶対パス、URL、<code>..</code>、symlinkは拒否します。</p>
+<div class="code-block"><div class="code-toolbar"><span>php</span></div><pre tabindex="0"><code class="language-php">'queries' =&gt; [
+    'users.search' =&gt; [
+        'path' =&gt; 'users/search.sql',
+        'kind' =&gt; 'read',
+        'postgres_min_version' =&gt; 18,
+        'parameters' =&gt; [
+            'tenantId' =&gt; ['type' =&gt; 'int64'],
+            'name' =&gt; ['type' =&gt; 'text', 'nullable' =&gt; true],
+        ],
+    ],
+],
+</code></pre>
+</div><p>入力の全オプションは <a href="parameters.html#options">パラメータスキーマ</a>、sorts / projectionsは <a href="templates.html#sort">SQL構造の選択</a> を参照してください。</p>
+<h2 id="limits">処理上限 limits</h2>
+<p>値は正整数かつPHP_INT_MAX未満です。0で無効化できません。未知キー、0、負数は <code>TW_LIMIT</code> になります。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="横スクロールできる参照表"><table>
+<thead>
+<tr>
+<th scope="col">キー</th>
+<th style="text-align: right;" scope="col">既定値</th>
+<th scope="col">対象</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>template_bytes</td>
+<td style="text-align: right;">1048576</td>
+<td>SQLテンプレートのbyte数（1 MiB）</td>
+</tr>
+<tr>
+<td>sql_bytes</td>
+<td style="text-align: right;">8388608</td>
+<td>生成SQLのbyte数（8 MiB）</td>
+</tr>
+<tr>
+<td>tokens</td>
+<td style="text-align: right;">100000</td>
+<td>字句トークン数</td>
+</tr>
+<tr>
+<td>ast_nodes</td>
+<td style="text-align: right;">100000</td>
+<td>ASTと反復展開のnode予算</td>
+</tr>
+<tr>
+<td>depth</td>
+<td style="text-align: right;">32</td>
+<td>構造の深さ</td>
+</tr>
+<tr>
+<td>list_items</td>
+<td style="text-align: right;">10000</td>
+<td>リストの要素数</td>
+</tr>
+<tr>
+<td>bindings</td>
+<td style="text-align: right;">10000</td>
+<td>bind数</td>
+</tr>
+<tr>
+<td>parameter_bytes</td>
+<td style="text-align: right;">8388608</td>
+<td>単体パラメータのbyte予算</td>
+</tr>
+<tr>
+<td>total_parameter_bytes</td>
+<td style="text-align: right;">33554432</td>
+<td>全パラメータのbyte予算（32 MiB）</td>
+</tr>
+<tr>
+<td>loop_items</td>
+<td style="text-align: right;">1000</td>
+<td>ループの入力件数</td>
+</tr>
+<tr>
+<td>loop_iterations</td>
+<td style="text-align: right;">10000</td>
+<td>入れ子を含む総反復数</td>
+</tr>
+</tbody>
+</table>
+</div><div class="code-block"><div class="code-toolbar"><span>php</span></div><pre tabindex="0"><code class="language-php">'limits' =&gt; [
+    'template_bytes' =&gt; 262144,
+    'list_items' =&gt; 500,
+    'loop_items' =&gt; 100,
+],
+</code></pre>
+</div><p>取得結果の全件数やDBのsort領域はこの設定の対象外です。SQLのLIMITや <a href="queries.html#streaming">逐次取得</a> を使い分けてください。</p>
+<h2 id="diagnostics">診断 diagnostics</h2>
+<div class="table-scroll" tabindex="0" role="region" aria-label="横スクロールできる参照表"><table>
+<thead>
+<tr>
+<th scope="col">キー</th>
+<th scope="col">既定値</th>
+<th scope="col">意味</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>coverage</td>
+<td>false</td>
+<td>SQL分岐の通過を記録</td>
+</tr>
+<tr>
+<td>execution</td>
+<td>false</td>
+<td>実行時間・行数・errorCode等を記録</td>
+</tr>
+<tr>
+<td>max_sources</td>
+<td>128</td>
+<td>coverageのsource保持上限</td>
+</tr>
+<tr>
+<td>max_arms</td>
+<td>100000</td>
+<td>全sourceの分岐保持上限</td>
+</tr>
+<tr>
+<td>max_events</td>
+<td>256</td>
+<td>実行eventの保持上限</td>
+</tr>
+</tbody>
+</table>
+</div><p>フラグはbool、上限は正整数です。保持上限を超えると古い記録を破棄します。request/job境界でのclearは <a href="operations.html#diagnostics">運用ガイド</a> を参照してください。</p>
+<h2 id="testing">テスト接続 testing</h2>
+<div class="table-scroll" tabindex="0" role="region" aria-label="横スクロールできる参照表"><table>
+<thead>
+<tr>
+<th scope="col">キー</th>
+<th scope="col">既定値</th>
+<th scope="col">意味</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>connection</td>
+<td>null</td>
+<td>明示したテスト用Laravel接続名</td>
+</tr>
+<tr>
+<td>allowed_hosts</td>
+<td>[]</td>
+<td>接続先hostの完全一致リスト</td>
+</tr>
+<tr>
+<td>allowed_databases</td>
+<td>[]</td>
+<td>テストDB名の完全一致リスト</td>
+</tr>
+<tr>
+<td>nonce</td>
+<td>null</td>
+<td>markerと照合する32〜128桁のhex値</td>
+</tr>
+</tbody>
+</table>
+</div><p>通常のselect/executeの接続設定ではなく、checkの実行モード・inspect・explainのための制限です。実DB名・markerを検査します。APP_ENVだけでは許可されません。準備は <a href="operations.html#test-database">隔離DBでの検証</a> を参照してください。</p>
+<h2 id="codegen">コード生成 codegen</h2>
+<div class="table-scroll" tabindex="0" role="region" aria-label="横スクロールできる参照表"><table>
+<thead>
+<tr>
+<th scope="col">キー</th>
+<th scope="col">既定値</th>
+<th scope="col">意味</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>root</td>
+<td>app/Generated/TwoWaySql</td>
+<td>Laravel basePathからの相対生成先</td>
+</tr>
+<tr>
+<td>namespace</td>
+<td>App\Generated\TwoWaySql</td>
+<td>ホストのPSR-4に合わせる生成namespace</td>
+</tr>
+<tr>
+<td>daos</td>
+<td>[]</td>
+<td>DAO interfaceのクラス名リスト。最大256件</td>
+</tr>
+<tr>
+<td>parameters</td>
+<td>[]</td>
+<td>入力DTOクラス → 明示入力スキーマ</td>
+</tr>
+<tr>
+<td>results</td>
+<td>[]</td>
+<td>SQL ID → 明示結果列スキーマ</td>
+</tr>
+<tr>
+<td>connections</td>
+<td>[]</td>
+<td>登録DAO interface → 接続名またはnull</td>
+</tr>
+</tbody>
+</table>
+</div><p>rootはアプリ配下に限定され、絶対パス・URL・<code>..</code>・symlinkは不可です。connectionsの省略はLaravel既定接続。結果型はSQLから完全推論せず宣言します。<a href="code-generation.html">生成手順</a> を参照してください。</p>
+<h2 id="execution-options">実行オプション ExecutionOptions</h2>
+<p>configのトップレベルキーではなく、呼び出しごとのオブジェクトです。</p>
+<div class="code-block"><div class="code-toolbar"><span>php</span></div><pre tabindex="0"><code class="language-php">use Hft\TwoWaySql\Laravel\Facades\TwoWaySql;
+use Hft\TwoWaySql\Laravel\Executor\ExecutionOptions;
+
+$queries = TwoWaySql::connection('pgsql')-&gt;withOptions(
+    new ExecutionOptions(statementTimeoutMs: 2000, lockTimeoutMs: 100),
+);
+</code></pre>
+</div><div class="table-scroll" tabindex="0" role="region" aria-label="横スクロールできる参照表"><table>
+<thead>
+<tr>
+<th scope="col">引数</th>
+<th scope="col">既定</th>
+<th scope="col">許可値 / 効果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>statementTimeoutMs</td>
+<td>null</td>
+<td>null=現在値を維持、0=無効化、正整数=ms。最大2147483647</td>
+</tr>
+<tr>
+<td>lockTimeoutMs</td>
+<td>null</td>
+<td>同上。ロック待ち上限</td>
+</tr>
+<tr>
+<td>planAdviceId</td>
+<td>null</td>
+<td>null=無効、登録済みID=明示適用。PG19専用</td>
+</tr>
+</tbody>
+</table>
+</div><p>timeout/adviceを指定した処理はLaravel transaction/savepoint内で設定し、成功時に元へ戻し、失敗時はそのscopeをrollbackします。外側transactionをcommitしません。別reader PDOが選ばれる構成では拒否するため、replica用named connectionを使ってください。</p>
+<p>timeoutは各SQLのDB処理への制約です。batchは各SQL、paginateはCOUNT/dataそれぞれ、eachはDECLARE/FETCH/CLOSEに適用され、PHP callback全体の時間を制限しません。</p>
+<h2 id="request-options">BatchOptions / PageRequest</h2>
+<div class="table-scroll" tabindex="0" role="region" aria-label="横スクロールできる参照表"><table>
+<thead>
+<tr>
+<th scope="col">クラス・引数</th>
+<th scope="col">既定</th>
+<th scope="col">許可値</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BatchOptions.atomic</td>
+<td>true</td>
+<td>bool。falseは外側transactionなしでのみ利用</td>
+</tr>
+<tr>
+<td>BatchOptions.maxItems</td>
+<td>1000</td>
+<td>正整数</td>
+</tr>
+<tr>
+<td>BatchOptions.expectedRowsPerItem</td>
+<td>null</td>
+<td>nullまたは0以上の整数</td>
+</tr>
+<tr>
+<td>PageRequest.page</td>
+<td>1</td>
+<td>正整数</td>
+</tr>
+<tr>
+<td>PageRequest.perPage</td>
+<td>50</td>
+<td>正整数、maxPerPage以下</td>
+</tr>
+<tr>
+<td>PageRequest.maxPerPage</td>
+<td>1000</td>
+<td>正整数。offsetの整数overflowも検査</td>
+</tr>
+</tbody>
+</table>
+</div><p>クラスはそれぞれ <code>Hft\TwoWaySql\Laravel\Batch\BatchOptions</code>、<code>Hft\TwoWaySql\Laravel\Pagination\PageRequest</code> です。</p></article><aside class="toc" aria-label="このページの目次"><strong>このページ</strong><ul><li><a href="#file">設定ファイル</a></li><li><a href="#general">トップレベルとキャッシュ</a></li><li><a href="#queries">クエリ登録</a></li><li><a href="#limits">処理上限 limits</a></li><li><a href="#diagnostics">診断 diagnostics</a></li><li><a href="#testing">テスト接続 testing</a></li><li><a href="#codegen">コード生成 codegen</a></li><li><a href="#execution-options">実行オプション ExecutionOptions</a></li><li><a href="#request-options">BatchOptions / PageRequest</a></li></ul></aside></div>
+<nav class="pagination" aria-label="前後のページ"><a href="queries.html">← 取得・更新と実行API</a><a href="code-generation.html">DAO・Params・DTO生成 →</a></nav>
+<footer>Laravel-2Way-SQL 利用ガイド · 2026-10-16<br>実装基準: <a href="https://github.com/soudai/Laravel-2Way-SQL/tree/32c74669aeeb720dba1d99846dd052f4902837c4">32c7466</a> / 公開パッケージ: <a href="https://github.com/soudai/Laravel-2Way-PostgreSQL/tree/24029728677daff64f025cb969c4e51095358993">2402972</a>。PostgreSQL 19正式版の検証は未完了。</footer>
+</main></div>
+</body></html>

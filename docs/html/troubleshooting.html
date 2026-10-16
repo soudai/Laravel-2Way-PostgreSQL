@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="全エラーコードと、設定・入力・接続・生成物を確認する手順。">
+<title>エラーとトラブルシューティング | Laravel-2Way-SQL</title>
+<link rel="stylesheet" href="assets/style.css">
+<script src="assets/search-index.js" defer></script>
+<script src="assets/docs.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#content">本文へ移動</a>
+<header class="topbar"><a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">2W</span><span>Laravel-2Way-SQL <small>/ 利用ガイド</small></span></a><a href="https://github.com/soudai/Laravel-2Way-PostgreSQL">配布リポジトリ ↗</a></header>
+<div class="layout">
+<aside class="sidebar"><details class="navigation" open><summary>ドキュメント目次・検索</summary>
+<div class="search-control" hidden><label for="doc-search">ドキュメントを検索</label><input id="doc-search" type="search" placeholder="API名・設定キー・単語" autocomplete="off" aria-controls="search-results"><p class="search-hint">Enter：検索結果へ / Esc：クリア</p></div>
+<nav aria-label="ガイドの章"><p class="nav-group">はじめに</p><ul><li><a href="index.html">概要・機能一覧</a></li><li><a href="getting-started.html">インストールと最初の実行</a></li></ul><p class="nav-group">使い方</p><ul><li><a href="templates.html">SQLテンプレート</a></li><li><a href="parameters.html">パラメータと型</a></li><li><a href="queries.html">取得・更新と実行API</a></li></ul><p class="nav-group">リファレンス</p><ul><li><a href="configuration.html">設定・オプション一覧</a></li><li><a href="code-generation.html">DAO・Params・DTO生成</a></li><li><a href="cli.html">Artisan CLIリファレンス</a></li><li><a href="postgresql.html">PostgreSQL固有機能</a></li></ul><p class="nav-group">運用</p><ul><li><a href="operations.html">検証・デプロイ・運用</a></li><li><a href="troubleshooting.html" aria-current="page">エラーとトラブルシューティング</a></li></ul></nav><p class="nav-note">PHP 8.4 / 8.5<br>Laravel 12 / 13<br>PostgreSQL 18 / 19 RC1</p>
+</details></aside>
+<main id="content" tabindex="-1">
+<section id="search-results" hidden aria-label="検索結果"><h2>検索結果</h2><p class="status" role="status" aria-live="polite"></p><ol></ol></section>
+<header class="page-header"><span class="chapter">11 / 11 · 運用</span><h1>エラーとトラブルシューティング</h1><p class="lead">全エラーコードと、設定・入力・接続・生成物を確認する手順。</p></header>
+<div class="content-grid"><article aria-label="エラーとトラブルシューティング"><h2 id="first">最初に確認すること</h2>
+<p>まず <code>php artisan twoway:lint</code> で登録・文法を確認します。入力スキーマ、SQL ID、kind、PDO/サーバー要件を順に照合し、DBの調査は合成データと隔離環境で行います。</p>
+<div class="code-block"><div class="code-toolbar"><span>php</span></div><pre tabindex="0"><code class="language-php">use Hft\TwoWaySql\Exception\SqlException;
+
+try {
+    $rows = $queries-&gt;select('users.search', $parameters);
+} catch (SqlException $e) {
+    // errorCode、sqlId、spanの行/列で原因を分類する。
+    // 実入力やbindingsを診断ログへ追加しない。
+    throw $e;
+}
+</code></pre>
+</div><p>SqlExceptionは <code>errorCode</code>、<code>sqlId</code>、<code>span</code>、<code>parameterPath</code> を公開します。DB実行失敗のSqlExecutionExceptionには <code>sqlState</code> があります。元のDB例外本文をpreviousへ保存しない設計です。</p>
+<h2 id="codes">エラーコード一覧</h2>
+<div class="table-scroll" tabindex="0" role="region" aria-label="横スクロールできる参照表"><table>
+<thead>
+<tr>
+<th scope="col">code</th>
+<th scope="col">主な原因</th>
+<th scope="col">確認・対応</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TW_SYNTAX</td>
+<td>テンプレート構造・式が不正</td>
+<td>end、命令行、条件の型、1文制約を確認</td>
+</tr>
+<tr>
+<td>TW_UNSUPPORTED</td>
+<td>未対応の構文・実行形態</td>
+<td>別reader PDOでのscope/streaming、未ロードadvice module等を確認</td>
+</tr>
+<tr>
+<td>TW_SAMPLE</td>
+<td>バインド後のサンプル不備</td>
+<td>scalar/listの形、リテラル、cast位置を確認</td>
+</tr>
+<tr>
+<td>TW_PARAMETER_MISSING</td>
+<td>必須キー欠落</td>
+<td>nullableでもキーを渡す。nested arrayの階層を確認</td>
+</tr>
+<tr>
+<td>TW_PARAMETER_EXTRA</td>
+<td>未宣言キー</td>
+<td>余剰キー、dotを含む入力キー、patch fieldを除く</td>
+</tr>
+<tr>
+<td>TW_PARAMETER_TYPE</td>
+<td>型・宣言・オプション不一致</td>
+<td>int/bool/日時、NULL許容、未知設定、Codecを確認</td>
+</tr>
+<tr>
+<td>TW_EMPTY_LIST</td>
+<td>空リストの選択展開</td>
+<td>空を業務としてどう扱うか、SQL構造と入力で明示</td>
+</tr>
+<tr>
+<td>TW_EMPTY_SET</td>
+<td>空の更新SET/patch</td>
+<td>更新対象がある場合だけ呼び出す</td>
+</tr>
+<tr>
+<td>TW_LIMIT</td>
+<td>byte数・件数・深さ等の上限</td>
+<td>入力/SQLを縮小し、必要なら予算を明示調整</td>
+</tr>
+<tr>
+<td>TW_TEMPLATE_PATH</td>
+<td>ID・path・rootが不正</td>
+<td>登録ID、存在する相対.sql、権限、symlinkを確認</td>
+</tr>
+<tr>
+<td>TW_QUERY_KIND</td>
+<td>SQL/API/kindの不一致</td>
+<td>writeとreturning、readとlocking等の契約を合わせる</td>
+</tr>
+<tr>
+<td>TW_CONNECTION</td>
+<td>DB設定・最低版・テスト接続検査</td>
+<td>native prepares、PDO例外、UTF8、strings=on、version、markerを確認</td>
+</tr>
+<tr>
+<td>TW_TRANSACTION_REQUIRED</td>
+<td>lockingをtransaction外で実行</td>
+<td>同じLaravel connectionのtransaction内へ移す</td>
+</tr>
+<tr>
+<td>TW_CARDINALITY</td>
+<td>厳密件数違反</td>
+<td>one=1行、oneOrNull=0/1行、scalar=1行1列を確認</td>
+</tr>
+<tr>
+<td>TW_EXECUTION</td>
+<td>DB実行やcallbackの失敗</td>
+<td>sqlState・SQL IDで分類し、隔離環境で調査</td>
+</tr>
+<tr>
+<td>TW_MAPPING</td>
+<td>DTO・結果型の変換不備</td>
+<td>alias、重複列、NULL、constructor、SqlType/converterを確認</td>
+</tr>
+<tr>
+<td>TW_SORT</td>
+<td>未登録ソート・不正定義</td>
+<td>text入力とsortsのキー、column/direction/nullsを確認</td>
+</tr>
+<tr>
+<td>TW_AFFECTED_ROWS</td>
+<td>期待更新件数と不一致</td>
+<td>ID/tenant/version条件と実際の対象を照合</td>
+</tr>
+<tr>
+<td>TW_BATCH</td>
+<td>バッチ途中の失敗</td>
+<td>failedIndex、completedIndexes、causeCode、sqlStateを確認</td>
+</tr>
+<tr>
+<td>TW_GENERATION</td>
+<td>DAO/生成/列metadataの不一致</td>
+<td>schema、signature、path、手編集、manifestを確認</td>
+</tr>
+<tr>
+<td>TW_COMPATIBILITY</td>
+<td>文法混在・version宣言不足</td>
+<td>queryのgrammar、19専用SQLのpostgres_min_versionを確認</td>
+</tr>
+</tbody>
+</table>
+</div><h2 id="faq">よくある症状</h2>
+<h3 id="artisan">Artisanコマンドが見つからない</h3>
+<p>パッケージがホストアプリへインストールされ、自動検出が有効かを確認します。Laravelのpackage:discoverとautoloadを再生成してください。パッケージの開発リポジトリ自体にartisanはありません。</p>
+<h3 id="nullable">nullableにしたのにパラメータ欠落になる</h3>
+<p>nullableはNULL値を許可する指定です。キー省略の許可ではありません。<code>['name'=&gt;null]</code> のように明示し、dot pathならネストした配列を渡します。</p>
+<h3 id="timestamp">timestamp文字列が拒否される</h3>
+<p>組込みtimestampは <code>YYYY-MM-DD HH:MM:SS.ffffff</code> を要求します。例えば <code>2026-01-01 12:30:00.000000</code>。timestamptzは文字列でなくDateTimeInterfaceです。</p>
+<h3 id="sqlcheck">SQLを更新したのに生成物checkが失敗する</h3>
+<p>SQL hashも生成契約に含まれます。開発環境で該当するgenerate / generate-schemaをwriteし、差分をレビューしてからcheckを再実行します。生成ファイルの手編集は上書きしません。</p>
+<h3 id="timeouteach">通常の検索は動くがtimeoutやeachが失敗する</h3>
+<p>read/write分離で別reader PDOが選ばれていないか確認します。transaction scopeをLaravelが管理できるnamed connectionへ切り替えてください。</p>
+<h3 id="pg19sqlpg18">PG19のSQLをPG18で動かしたい</h3>
+<p>自動fallbackは提供しません。18向けSQLを別途用意し、必要な契約を明示してください。19の宣言を外すだけでは対応になりません。</p>
+<h3 id="githubhtml">GitHub上でHTMLがソース表示になる</h3>
+<p>GitHubのファイル画面はHTMLをWebページとして実行しません。リポジトリを取得して <code>docs/html/index.html</code> をブラウザで開くか、このフォルダを静的Webサーバーで配信してください。外部CDNやビルドは不要です。</p>
+<h2 id="commands">調査用のコマンド</h2>
+<div class="code-block"><div class="code-toolbar"><span>bash</span></div><pre tabindex="0"><code class="language-bash">php artisan twoway:lint
+php artisan twoway:check tests/sql/cases.json --json
+php artisan twoway:generate --check
+php artisan twoway:generate-schema users.search --params=SearchParams --dto=UserRow --check
+</code></pre>
+</div><p>ケース・生成物を利用している対象について実行します。実DBのmetadataや計画を調べる場合は <a href="cli.html#inspect">inspect / explain</a> と <a href="operations.html#test-database">隔離DBの設定</a> を使用してください。</p></article><aside class="toc" aria-label="このページの目次"><strong>このページ</strong><ul><li><a href="#first">最初に確認すること</a></li><li><a href="#codes">エラーコード一覧</a></li><li><a href="#faq">よくある症状</a></li><li><a href="#commands">調査用のコマンド</a></li></ul></aside></div>
+<nav class="pagination" aria-label="前後のページ"><a href="operations.html">← 検証・デプロイ・運用</a><a href="index.html">概要に戻る ↑</a></nav>
+<footer>Laravel-2Way-SQL 利用ガイド · 2026-10-16<br>実装基準: <a href="https://github.com/soudai/Laravel-2Way-SQL/tree/32c74669aeeb720dba1d99846dd052f4902837c4">32c7466</a> / 公開パッケージ: <a href="https://github.com/soudai/Laravel-2Way-PostgreSQL/tree/24029728677daff64f025cb969c4e51095358993">2402972</a>。PostgreSQL 19正式版の検証は未完了。</footer>
+</main></div>
+</body></html>

@@ -3,6 +3,11 @@
 Laravelの既存Database接続でSQLファイルを実行する、PostgreSQL専用の2-way SQLパッケージです。
 SQLファイルはサンプル値のままDBクライアントでも実行でき、Laravelでは入力値をバインドして実行します。
 
+## ドキュメント
+
+[HTML利用ガイド](docs/html/index.html)に、使い方・機能・設定オプション・API・Artisanコマンドをまとめています。
+リポジトリを取得し、`docs/html/index.html` をブラウザで開いてください。CSS・JavaScriptも同梱しています。
+
 ## 動作要件
 
 - PHP 8.4 / 8.5（64bit、`pdo_pgsql`・`mbstring` 拡張）

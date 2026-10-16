@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="型付き配列、JSON文書、期間型、MERGE、OLD/NEWとPostgreSQL 19の機能。">
+<title>PostgreSQL固有機能 | Laravel-2Way-SQL</title>
+<link rel="stylesheet" href="assets/style.css">
+<script src="assets/search-index.js" defer></script>
+<script src="assets/docs.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#content">本文へ移動</a>
+<header class="topbar"><a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">2W</span><span>Laravel-2Way-SQL <small>/ 利用ガイド</small></span></a><a href="https://github.com/soudai/Laravel-2Way-PostgreSQL">配布リポジトリ ↗</a></header>
+<div class="layout">
+<aside class="sidebar"><details class="navigation" open><summary>ドキュメント目次・検索</summary>
+<div class="search-control" hidden><label for="doc-search">ドキュメントを検索</label><input id="doc-search" type="search" placeholder="API名・設定キー・単語" autocomplete="off" aria-controls="search-results"><p class="search-hint">Enter：検索結果へ / Esc：クリア</p></div>
+<nav aria-label="ガイドの章"><p class="nav-group">はじめに</p><ul><li><a href="index.html">概要・機能一覧</a></li><li><a href="getting-started.html">インストールと最初の実行</a></li></ul><p class="nav-group">使い方</p><ul><li><a href="templates.html">SQLテンプレート</a></li><li><a href="parameters.html">パラメータと型</a></li><li><a href="queries.html">取得・更新と実行API</a></li></ul><p class="nav-group">リファレンス</p><ul><li><a href="configuration.html">設定・オプション一覧</a></li><li><a href="code-generation.html">DAO・Params・DTO生成</a></li><li><a href="cli.html">Artisan CLIリファレンス</a></li><li><a href="postgresql.html" aria-current="page">PostgreSQL固有機能</a></li></ul><p class="nav-group">運用</p><ul><li><a href="operations.html">検証・デプロイ・運用</a></li><li><a href="troubleshooting.html">エラーとトラブルシューティング</a></li></ul></nav><p class="nav-note">PHP 8.4 / 8.5<br>Laravel 12 / 13<br>PostgreSQL 18 / 19 RC1</p>
+</details></aside>
+<main id="content" tabindex="-1">
+<section id="search-results" hidden aria-label="検索結果"><h2>検索結果</h2><p class="status" role="status" aria-live="polite"></p><ol></ol></section>
+<header class="page-header"><span class="chapter">09 / 11 · リファレンス</span><h1>PostgreSQL固有機能</h1><p class="lead">型付き配列、JSON文書、期間型、MERGE、OLD/NEWとPostgreSQL 19の機能。</p></header>
+<div class="content-grid"><article aria-label="PostgreSQL固有機能"><h2 id="versions">バージョン別の使い分け</h2>
+<p>現在の対象はPostgreSQL 18/19です。19はRC1で先行検証したもので、正式版の検証完了とは区別しています。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="横スクロールできる参照表"><table>
+<thead>
+<tr>
+<th scope="col">機能</th>
+<th scope="col">必要な宣言・条件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MERGE、OLD/NEW RETURNING</td>
+<td>18/19、適切なwrite / write_returning</td>
+</tr>
+<tr>
+<td>配列・JSONB・range・multirange</td>
+<td>18/19、型を明示。型付き結果はCodec登録</td>
+</tr>
+<tr>
+<td>ON CONFLICT DO SELECT</td>
+<td>postgres_min_version=19、主文INSERT＋RETURNING、write_returning</td>
+</tr>
+<tr>
+<td>plan advice</td>
+<td>postgres_min_version=19、DB側module準備、明示ID選択</td>
+</tr>
+<tr>
+<td>JSONPath upper()、19追加range関数等</td>
+<td>postgres_min_version=19。18への自動代替なし</td>
+</tr>
+</tbody>
+</table>
+</div><div class="code-block"><div class="code-toolbar"><span>php</span></div><pre tabindex="0"><code class="language-php">'postgres_min_version' =&gt; 19,
+</code></pre>
+</div><p>宣言不足は対応する検査で <code>TW_COMPATIBILITY</code>、18の接続への19専用実行は <code>TW_CONNECTION</code> になります。DDL・extensionの導入はアプリのmigrationやDB運用で行います。</p>
+<h2 id="registration">標準Codecの登録</h2>
+<p>アプリのServiceProviderのbootで一度登録します。</p>
+<div class="code-block"><div class="code-toolbar"><span>php</span></div><pre tabindex="0"><code class="language-php">use Hft\TwoWaySql\Parameter\Registry\CodecRegistry;
+use Hft\TwoWaySql\Types\PostgresTypes;
+
+public function boot(): void
+{
+    PostgresTypes::register($this-&gt;app-&gt;make(CodecRegistry::class));
+}
+</code></pre>
+</div><p><code>queries.&lt;ID&gt;.parameters</code> と <code>codegen.results.&lt;ID&gt;</code> に同じ <code>codec:ID</code> を宣言すると、入力・結果DTO・生成コード・PHPStanで型を共有できます。DTOの対象引数には <code>#[Hft\TwoWaySql\Attributes\SqlType('ID')]</code> を使用します。生成DTOでは属性も自動で付きます。</p>
+<h2 id="typed-arrays">型付き配列</h2>
+<div class="table-scroll" tabindex="0" role="region" aria-label="横スクロールできる参照表"><table>
+<thead>
+<tr>
+<th scope="col">Codec ID</th>
+<th scope="col">PHP要素型</th>
+<th scope="col">SQL cast</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>pg.array.int64</td>
+<td>int</td>
+<td>bigint[]</td>
+</tr>
+<tr>
+<td>pg.array.text</td>
+<td>string</td>
+<td>text[]</td>
+</tr>
+<tr>
+<td>pg.array.uuid</td>
+<td>UUID文字列</td>
+<td>uuid[]</td>
+</tr>
+<tr>
+<td>pg.array.bool</td>
+<td>bool</td>
+<td>boolean[]</td>
+</tr>
+<tr>
+<td>pg.array.decimal</td>
+<td>十進文字列</td>
+<td>numeric[]</td>
+</tr>
+</tbody>
+</table>
+</div><p>NULL要素を許可するIDは <code>.nullable_elements</code> を追加します。列のSQL NULLは、さらに利用箇所のnullable=trueで宣言します。</p>
+<div class="code-block"><div class="code-toolbar"><span>php</span></div><pre tabindex="0"><code class="language-php">'flags' =&gt; ['type' =&gt; 'codec:pg.array.bool.nullable_elements', 'nullable' =&gt; true],
+</code></pre>
+</div><div class="code-block"><div class="code-toolbar"><span>sql</span></div><pre tabindex="0"><code class="language-sql">SELECT /*:flags*/'{true,NULL}'::boolean[] AS flags
+</code></pre>
+</div><p>SQL NULL / <code>{}</code> / <code>{NULL}</code> / <code>{"NULL"}</code> は、順にPHP null / [] / [null] / ['NULL']です。配列全体を1bindにし、INのリスト展開とは区別します。一次元・下限添字1だけを受け付け、多次元や下限0は <code>TW_MAPPING</code>。標準上限は8 MiB / 10000要素です。</p>
+<h2 id="json-document">JSON文書の精度</h2>
+<p><code>codec:pg.jsonb.document</code> は <code>JsonDocument</code> を入出力に使用します。JSON数値をPHPのfloatへ変換せず、object/array/nullの構造を保ちます。</p>
+<div class="code-block"><div class="code-toolbar"><span>php</span></div><pre tabindex="0"><code class="language-php">use Hft\TwoWaySql\Types\JsonDocument;
+
+$document = JsonDocument::fromJson('{"amount":12345678901234567890.123456789}');
+// 入力宣言: value =&gt; ['type' =&gt; 'codec:pg.jsonb.document']
+$parameters = ['value' =&gt; $document];
+</code></pre>
+</div><div class="code-block"><div class="code-toolbar"><span>sql</span></div><pre tabindex="0"><code class="language-sql">SELECT /*:value*/'{}'::jsonb AS value
+</code></pre>
+</div><p>JSON nullは <code>JsonDocument::fromJson('null')</code>、SQL NULLはnullable宣言とPHP nullです。<code>kind()</code> はobject/array/string/number/boolean/nullを返し、<code>raw()</code> で検証済みJSONを明示取得します。既定8 MiB・深さ64。JSONBによるキー順・空白・重複キーの正規化は維持されるため、原文byte列の再現ではありません。</p>
+<h2 id="ranges">range / multirange</h2>
+<div class="code-block"><div class="code-toolbar"><span>php</span></div><pre tabindex="0"><code class="language-php">use Hft\TwoWaySql\Parameter\Range\DateRange;
+use Hft\TwoWaySql\Parameter\Range\DateMultirange;
+
+$range = DateRange::between('2026-01-01', '2026-01-10');
+$available = DateMultirange::of([$range]);
+$booked = DateMultirange::of([DateRange::between('2026-01-03', '2026-01-05')]);
+</code></pre>
+</div><p>単一区間は組込みのdaterange/tstzrange、複数区間は登録した <code>codec:pg.datemultirange</code> / <code>codec:pg.tstzmultirange</code> を宣言します。SQLのcastは明示します。</p>
+<div class="code-block"><div class="code-toolbar"><span>sql</span></div><pre tabindex="0"><code class="language-sql">SELECT /*:available*/'{[2026-01-01,2026-01-10)}'::datemultirange
+     - /*:booked*/'{[2026-01-03,2026-01-05)}'::datemultirange AS value
+</code></pre>
+</div><p>SQL NULL、空multirange <code>of([])</code>、空range <code>DateRange::empty()</code>、無限端点のnullは別物です。PostgreSQLは区間を整列・統合し、空rangeを除去します。結果の再入力で集合の意味を保ちますが、元の順序・区間数は復元しません。</p>
+<p>TstzRange/TstzMultirangeは時刻の瞬間とmicrosecondsを保持します。表示offsetはDB timezoneで変わる場合があります。multirangeの標準上限は8 MiB / 10000区間。19の <code>range_minus_multi</code> 等は複数行や0行になり得るため、scalar前提にせずselect等で扱います。</p>
+<h2 id="merge">MERGEと変更件数</h2>
+<p>MERGEはRETURNINGなしをwrite、ありをwrite_returningで登録します。ループからsourceのVALUESを作ることもできます。</p>
+<div class="code-block"><div class="code-toolbar"><span>sql</span></div><pre tabindex="0"><code class="language-sql">MERGE INTO items AS target
+USING (VALUES (/*:id*/1::bigint, /*:value*/'sample'::text)) AS source(id, value)
+ON target.id = source.id
+WHEN MATCHED THEN UPDATE SET value = source.value
+WHEN NOT MATCHED THEN INSERT (id, value) VALUES (source.id, source.value)
+</code></pre>
+</div><p>上例はid:int64・value:text、kind=writeで登録します。execute / executeExpecting / batchの件数はPDOのMERGE command tagを使い、入力数から推測しません。DO NOTHINGは変更しません。BY SOURCEのDELETEを使う同期ではテナント等の対象範囲もSQLに明示してください。</p>
+<p>action別の結果が必要なら <code>RETURNING merge_action() AS action, old.id AS old_id, new.id AS new_id</code> を付け、kindをwrite_returningにします。INSERTのold・DELETEのnewはNULLです。</p>
+<h2 id="returning">OLD/NEW RETURNING</h2>
+<div class="code-block"><div class="code-toolbar"><span>sql</span></div><pre tabindex="0"><code class="language-sql">UPDATE items SET value = /*:value*/'sample', version = version + 1
+WHERE id = /*:id*/1
+RETURNING WITH (OLD AS previous, NEW AS current)
+    previous.value AS old_value, current.value AS new_value,
+    previous.version AS old_version, current.version AS new_version
+</code></pre>
+</div><p>id:int64・value:text、kind=write_returningとして登録します。更新前後の列aliasを明示し、returningAsのDTOへ対応させます。列重複や変換失敗は <code>TW_MAPPING</code> となり、当該更新scopeをrollbackします。</p>
+<h2 id="get-or-create">PostgreSQL 19のget-or-create</h2>
+<div class="code-block"><div class="code-toolbar"><span>sql</span></div><pre tabindex="0"><code class="language-sql">INSERT INTO get_create_items AS target (id, value)
+VALUES (/*:id*/1, /*:value*/'sample')
+ON CONFLICT (id) DO SELECT
+RETURNING id, value, version, old.id AS old_id
+</code></pre>
+</div><p>テーブルはid bigint PRIMARY KEY、value text、version int NOT NULL DEFAULT 0を事前に作成します。kind=write_returning・postgres_min_version=19、入力id:int64・value:text。既存行のvalueを上書きせず、既存行か新規行を返します。</p>
+<p>返却行数・command tag件数・実変更数は異なるため、returning / returningAs専用です。execute / executeExpecting / batchは使用しません。条件付きDO SELECTでは0行になり得ます。INSERT側triggerやsequenceの実行可能性、競合待機、必要なrow lockはアプリ側で考慮します。</p>
+<h2 id="plan-advice">PostgreSQL 19のplan advice</h2>
+<p>DB側でpg_plan_adviceをロードし、対象SQLをpostgres_min_version=19と宣言します。configのplan_adviceには信頼済みID、SQL ID、レビューしたquery hash、adviceを固定します。</p>
+<div class="code-block"><div class="code-toolbar"><span>php</span></div><pre tabindex="0"><code class="language-php">'plan_advice' =&gt; [
+    'users.scan.v1' =&gt; [
+        'query_id' =&gt; 'users.search',
+        'query_hash' =&gt; '&lt;レビューしたcompile結果の64桁SHA256に置換&gt;',
+        'advice' =&gt; 'SEQ_SCAN(u)',
+    ],
+],
+</code></pre>
+</div><p>hashは合成入力の <code>compile(...)-&gt;hash</code> またはexplainのquery_hashで取得します。この例のplaceholderは実際の64桁hashへ置換してください。入力からadviceや登録hashを組み立てず、SQLと一緒にレビューします。</p>
+<p><code>ExecutionOptions(planAdviceId: 'users.scan.v1')</code> またはexplainの <code>--advice=users.scan.v1</code> で明示選択します。SQLの分岐・IN要素数・定義が変わりhashが違えば拒否します。1つのIDを別クエリやpaginateのCOUNT/dataへ流用しません。</p>
+<p>適用中はtransaction/savepoint内で設定し、終了時に戻します。feedbackのmatchedは高速化の保証ではありません。条件式や生のadviceは診断へ出さず、固定の適合フラグで確認します。自動最適化・永続advice・pg_hint_plan互換は提供しません。</p>
+<h2 id="custom-types">独自型を共有する</h2>
+<p>入力Codecと結果ColumnConverterを実装し、<code>registerType(new TypeDescriptor(id, inputType, resultType, postgresType, nullable: ...), inputCodec, resultConverter)</code> で登録します。</p>
+<p>同じIDを入力/結果の <code>codec:ID</code> とDTOのSqlTypeに指定すると、生成・PHPStanでも共有できます。descriptorと利用箇所の両方でNULLを許可する必要があります。NULL時はconverterを呼びません。変換の意味を変える場合はIDを更新し、生成物も再生成してください。</p></article><aside class="toc" aria-label="このページの目次"><strong>このページ</strong><ul><li><a href="#versions">バージョン別の使い分け</a></li><li><a href="#registration">標準Codecの登録</a></li><li><a href="#typed-arrays">型付き配列</a></li><li><a href="#json-document">JSON文書の精度</a></li><li><a href="#ranges">range / multirange</a></li><li><a href="#merge">MERGEと変更件数</a></li><li><a href="#returning">OLD/NEW RETURNING</a></li><li><a href="#get-or-create">PostgreSQL 19のget-or-create</a></li><li><a href="#plan-advice">PostgreSQL 19のplan advice</a></li><li><a href="#custom-types">独自型を共有する</a></li></ul></aside></div>
+<nav class="pagination" aria-label="前後のページ"><a href="cli.html">← Artisan CLIリファレンス</a><a href="operations.html">検証・デプロイ・運用 →</a></nav>
+<footer>Laravel-2Way-SQL 利用ガイド · 2026-10-16<br>実装基準: <a href="https://github.com/soudai/Laravel-2Way-SQL/tree/32c74669aeeb720dba1d99846dd052f4902837c4">32c7466</a> / 公開パッケージ: <a href="https://github.com/soudai/Laravel-2Way-PostgreSQL/tree/24029728677daff64f025cb969c4e51095358993">2402972</a>。PostgreSQL 19正式版の検証は未完了。</footer>
+</main></div>
+</body></html>
