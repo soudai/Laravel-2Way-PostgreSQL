@@ -5,8 +5,11 @@ SQLファイルはサンプル値のままDBクライアントでも実行でき
 
 ## ドキュメント
 
-[HTML利用ガイド](docs/html/index.html)に、使い方・機能・設定オプション・API・Artisanコマンドをまとめています。
-リポジトリを取得し、`docs/html/index.html` をブラウザで開いてください。CSS・JavaScriptも同梱しています。
+[HTML利用ガイド](https://soudai.github.io/Laravel-2Way-PostgreSQL/)に、使い方・機能・設定オプション・API・Artisanコマンドをまとめています。
+GitHub Pagesには、`main` の `docs/html/` の変更をGitHub Actionsで自動反映します。
+
+[HTMLソース](docs/html/index.html)はリポジトリにも同梱しています。
+リポジトリを取得し、`docs/html/index.html` をブラウザで開くとローカルでも閲覧できます。CSS・JavaScriptも同梱しています。
 
 ## 動作要件
 
