@@ -7,9 +7,11 @@ namespace Hft\TwoWaySql\StaticAnalysis;
 use Hft\TwoWaySql\Attributes\SqlType;
 use Hft\TwoWaySql\Codegen\Definition\ResultSchema;
 use Hft\TwoWaySql\Contracts\Compiler;
+use Hft\TwoWaySql\Execution\QueryOperation;
 use Hft\TwoWaySql\Laravel\Executor\Executor;
 use Hft\TwoWaySql\Laravel\Facades\TwoWaySql;
 use Hft\TwoWaySql\Laravel\TwoWaySqlManager;
+use Hft\TwoWaySql\Template\QueryKind;
 use Illuminate\Database\Eloquent\Model;
 use PhpParser\Node;
 use PhpParser\Node\Arg;
@@ -57,10 +59,11 @@ final class CallRule implements Rule
             }
         }
         $method = $node->name->name;
-        $dto = in_array($method, ['selectAs', 'oneAs', 'oneOrNullAs', 'returningAs', 'eachAs'], true);
-        if (! $dto && ! in_array($method, ['compile', 'select', 'one', 'oneOrNull', 'scalar', 'execute', 'returning', 'executeExpecting', 'batch', 'each'], true)) {
+        $operation = QueryOperation::forMethod($method);
+        if ($operation === null) {
             return [];
         }
+        $dto = $method !== $operation->value;
         $arguments = $node->getArgs();
         $id = $this->argument($arguments, 'id', $dto ? 1 : 0);
         if ($id === null || $id->unpack || ($ids = $scope->getType($id->value)->getConstantStrings()) === []) {
@@ -77,14 +80,7 @@ final class CallRule implements Rule
             if ($query->stale()) {
                 $errors[] = $this->error('staleSql', 'SQL source changed; regenerate and review the declared contracts.');
             }
-            $allowed = match ($method) {
-                'compile' => ['read', 'locking', 'write', 'write_returning'],
-                'execute', 'executeExpecting', 'batch' => ['write'],
-                'returning', 'returningAs' => ['write_returning'],
-                'each', 'eachAs' => ['read'],
-                default => ['read', 'locking'],
-            };
-            if (! in_array($query->contract->kind, $allowed, true)) {
+            if (! $operation->allows(QueryKind::from($query->contract->kind))) {
                 $errors[] = $this->error('queryKind', 'Execution mode does not match the declared query kind.');
             }
             $arg = $this->argument($arguments, $method === 'batch' ? 'parameterSets' : 'parameters', $dto ? 2 : 1);

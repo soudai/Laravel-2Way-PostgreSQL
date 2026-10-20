@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="検証したリリース、必要バージョンの宣言、reader / writerの選択と更新時の確認。">
+<title>PostgreSQLの対応環境と接続選択 | Laravel-2Way-PostgreSQL</title>
+<link rel="stylesheet" href="assets/style.css">
+<script src="assets/search-index.js" defer></script>
+<script src="assets/docs.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#content">本文へ移動</a>
+<header class="topbar"><a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">2W</span><span>Laravel-2Way-PostgreSQL <small>/ 利用ガイド</small></span></a><a href="https://github.com/soudai/Laravel-2Way-PostgreSQL">配布リポジトリ ↗</a></header>
+<div class="layout">
+<aside class="sidebar"><details class="navigation" open><summary>ドキュメント目次・検索</summary>
+<div class="search-control" hidden><label for="doc-search">ドキュメントを検索</label><input id="doc-search" type="search" placeholder="API名・設定キー・単語" autocomplete="off" aria-controls="search-results"><p class="search-hint">Enter：検索結果へ / Esc：クリア</p></div>
+<nav aria-label="ガイドの章"><p class="nav-group">はじめに</p><ul><li><a href="index.html">概要・機能一覧</a></li><li><a href="getting-started.html">インストールと最初の実行</a></li></ul><p class="nav-group">使い方</p><ul><li><a href="templates.html">SQLテンプレート</a></li><li><a href="parameters.html">パラメータと型</a></li><li><a href="queries.html">取得・更新と実行API</a></li></ul><p class="nav-group">リファレンス</p><ul><li><a href="configuration.html">設定・オプション一覧</a></li><li><a href="code-generation.html">DAO・Params・DTO生成</a></li><li><a href="cli.html">Artisan CLIリファレンス</a></li><li><a href="postgresql.html">PostgreSQL固有機能</a></li></ul><p class="nav-group">運用</p><ul><li><a href="postgresql-versions.html" aria-current="page">PostgreSQLの対応環境と接続選択</a></li><li><a href="operations.html">検証・デプロイ・運用</a></li><li><a href="troubleshooting.html">エラーとトラブルシューティング</a></li></ul></nav><p class="nav-note">PHP 8.4 / 8.5<br>Laravel 12 / 13<br>PostgreSQL 18 / 19 RC1</p>
+</details></aside>
+<main id="content" tabindex="-1">
+<section id="search-results" hidden aria-label="検索結果"><h2>検索結果</h2><p class="status" role="status" aria-live="polite"></p><ol></ol></section>
+<header class="page-header"><span class="chapter">10 / 12 · 運用</span><h1>PostgreSQLの対応環境と接続選択</h1><p class="lead">検証したリリース、必要バージョンの宣言、reader / writerの選択と更新時の確認。</p></header>
+<div class="content-grid"><article aria-label="PostgreSQLの対応環境と接続選択"><h2 id="verified-environments">対応環境と検証範囲</h2>
+<p>PHP 8.4 / 8.5（64bit）、Laravel 12 / 13、PostgreSQL 18 / 19を対象とします。PostgreSQL 19の確認済みリリースは<strong>19rc1</strong>です。正式版での検証は未完了です。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="検証した環境"><table>
+<thead><tr><th scope="col">区分</th><th scope="col">確認した構成</th><th scope="col">範囲</th></tr></thead>
+<tbody>
+<tr><td>通常依存</td><td>PHP 8.4 / 8.5 × Laravel 12 / 13 × PostgreSQL 18.6 / 19rc1</td><td>8構成。各構成で482テストと配布パッケージの導入・実DB実行を確認</td></tr>
+<tr><td>最低依存</td><td>PHP 8.4 + Laravel 12 + PostgreSQL 18.6、PHP 8.5 + Laravel 13 + PostgreSQL 19rc1</td><td>2構成。同じテストと配布確認を実行</td></tr>
+<tr><td>異なるバージョンの接続</td><td>独立したPostgreSQL 18.6 / 19rc1のDB</td><td>reader / writerの選択、transaction、sticky、reconnect / purgeを5ケースで確認</td></tr>
+</tbody></table></div>
+<p>2026-10-20の実装検証に基づく範囲です。19側の5構成ではバージョンが異なる接続の試験も実行しました。単一の環境での成功を、すべてのPHP・Laravel・DBの組合せや利用アプリの動作保証とは扱いません。</p>
+
+<h2 id="minimum-version">クエリに必要なバージョンを宣言する</h2>
+<p><code>queries.&lt;ID&gt;.postgres_min_version</code> は整数の18（既定）または19です。コンパイルはDBに接続せず、実行直前にLaravelが選んだPDOのバージョンを確認します。必要なバージョンを満たさない場合は登録SQLを送らず <code>TW_CONNECTION</code> になります。</p>
+<div class="code-block"><div class="code-toolbar"><span>php</span></div><pre tabindex="0"><code class="language-php">'queries' =&gt; [
+    'items.get_or_create' =&gt; [
+        'path' =&gt; 'items/get_or_create.sql',
+        'kind' =&gt; 'write_returning',
+        'postgres_min_version' =&gt; 19,
+        'parameters' =&gt; [
+            'id' =&gt; ['type' =&gt; 'int64'],
+            'value' =&gt; ['type' =&gt; 'text'],
+        ],
+    ],
+],
+</code></pre></div>
+<p>SQLの書き方は<a href="postgresql.html">PostgreSQL 19のget-or-create</a>を参照してください。19専用SQLを18向けに自動変換する機能はありません。宣言を変更したら生成物とASTキャッシュも更新します。</p>
+
+<h2 id="connection-routing">reader / writerのバージョンが異なる場合</h2>
+<p>接続名ごとに一括判定せず、実際の実行先を検査します。以下は通常のreadを中心とした接続選択の契約です。write / RETURNINGは常にwriterを使用します。</p>
+<div class="table-scroll" tabindex="0" role="region" aria-label="接続選択と必要バージョン"><table>
+<thead><tr><th scope="col">状態</th><th scope="col">検査する接続</th><th scope="col">19専用クエリ</th></tr></thead>
+<tbody>
+<tr><td>transaction外、writer18 / reader19</td><td>reader19</td><td>実行可能。未使用のwriterを開かない</td></tr>
+<tr><td>transaction外、writer19 / reader18</td><td>reader18</td><td>登録SQLを送らず拒否</td></tr>
+<tr><td>既存transaction内 / locking</td><td>writer</td><td>writer18なら拒否、writer19なら実行可能</td></tr>
+<tr><td>write後のsticky読取</td><td>writer</td><td>writerのバージョンで判定</td></tr>
+<tr><td>Laravelのreconnect / purge後</td><td>再生成されたPDO</td><td>以前の検証結果を流用せず再判定</td></tr>
+</tbody></table></div>
+<p>writer19 / reader18では、transaction内で成功した19専用検索が、rollback後にreaderへ戻ると拒否される場合があります。接続選択はLaravelの状態に従います。</p>
+<p>タイムアウト・plan advice・<code>each</code> / <code>eachAs</code>には追加の接続条件があります。別reader PDOを使う場合は<a href="operations.html#routing">接続構成</a>と<a href="configuration.html#execution-options">実行オプション</a>を確認してください。</p>
+<p>この確認は、独立した2台の隔離DBで接続の選択を調べたものです。異なるメジャーバージョン間の物理レプリケーションやデータ複製の整合性を検証したものではありません。</p>
+
+<h2 id="release-verification">RC版と正式版を区別する</h2>
+<p><code>server_version_num=190000</code> だけでは19rc1と19.0を区別できません。環境の確認では <code>SHOW server_version</code> の実リリース表記も記録してください。実行時の最低バージョン判定と、そのリリースを検証済みとする判断は別です。</p>
+<p>19正式版での対応確認には、通常8構成・最低依存2構成に加え、配布パッケージの導入、19専用SQL、reader / writerの選択、plan adviceの導入時・未導入時の再検証が必要です。現時点の19rc1の結果を正式版の実績として表示しません。</p>
+
+<h2 id="upgrading">今回の更新とアプリ側の確認</h2>
+<p>2026-10-20の更新では、接続検証・transaction / savepoint・例外処理・診断を共通の実行処理へ整理し、実行API・DAO生成・PHPStanの操作契約を共通化しました。公開API、SQL文法、クエリ種別、既存の生成PHP・manifest形式を維持しています。内部クラスをアプリから直接呼び出す必要はありません。</p>
+<p>入力値を含む例外の扱い、DTO変換失敗時のrollback、cursor解放、observer失敗が結果を変えないことを回帰テストで確認しています。利用アプリの認可・テナント条件や外部ログの設定は、引き続きアプリ側で管理してください。</p>
+<p>更新時はホストアプリの <code>composer.lock</code> を更新してレビューし、<a href="operations.html">デプロイ手順</a>に沿ってSQL・設定・生成物を検査します。最新の変更概要は<a href="https://github.com/soudai/Laravel-2Way-PostgreSQL/blob/main/CHANGELOG.md">変更履歴</a>を参照してください。</p>
+</article><aside class="toc" aria-label="このページの目次"><strong>このページ</strong><ul><li><a href="#verified-environments">対応環境と検証範囲</a></li><li><a href="#minimum-version">クエリに必要なバージョンを宣言する</a></li><li><a href="#connection-routing">reader / writerのバージョンが異なる場合</a></li><li><a href="#release-verification">RC版と正式版を区別する</a></li><li><a href="#upgrading">今回の更新とアプリ側の確認</a></li></ul></aside></div>
+<nav class="pagination" aria-label="前後のページ"><a href="postgresql.html">← PostgreSQL固有機能</a><a href="operations.html">検証・デプロイ・運用 →</a></nav>
+<footer>Laravel-2Way-PostgreSQL 利用ガイド · 更新日 2026-10-20<br><a href="https://github.com/soudai/Laravel-2Way-PostgreSQL/blob/main/LICENSE">MITライセンス</a> · <a href="postgresql-versions.html">対応環境と検証範囲</a>。PostgreSQL 19正式版の検証は未完了。</footer>
+</main></div>
+</body></html>

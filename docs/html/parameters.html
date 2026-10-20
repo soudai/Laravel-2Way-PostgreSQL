@@ -4,22 +4,22 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="必須キー・NULL・型の契約と、入力DTO・Codecの選び方。">
-<title>パラメータと型 | Laravel-2Way-SQL</title>
+<title>パラメータと型 | Laravel-2Way-PostgreSQL</title>
 <link rel="stylesheet" href="assets/style.css">
 <script src="assets/search-index.js" defer></script>
 <script src="assets/docs.js" defer></script>
 </head>
 <body>
 <a class="skip-link" href="#content">本文へ移動</a>
-<header class="topbar"><a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">2W</span><span>Laravel-2Way-SQL <small>/ 利用ガイド</small></span></a><a href="https://github.com/soudai/Laravel-2Way-PostgreSQL">配布リポジトリ ↗</a></header>
+<header class="topbar"><a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">2W</span><span>Laravel-2Way-PostgreSQL <small>/ 利用ガイド</small></span></a><a href="https://github.com/soudai/Laravel-2Way-PostgreSQL">配布リポジトリ ↗</a></header>
 <div class="layout">
 <aside class="sidebar"><details class="navigation" open><summary>ドキュメント目次・検索</summary>
 <div class="search-control" hidden><label for="doc-search">ドキュメントを検索</label><input id="doc-search" type="search" placeholder="API名・設定キー・単語" autocomplete="off" aria-controls="search-results"><p class="search-hint">Enter：検索結果へ / Esc：クリア</p></div>
-<nav aria-label="ガイドの章"><p class="nav-group">はじめに</p><ul><li><a href="index.html">概要・機能一覧</a></li><li><a href="getting-started.html">インストールと最初の実行</a></li></ul><p class="nav-group">使い方</p><ul><li><a href="templates.html">SQLテンプレート</a></li><li><a href="parameters.html" aria-current="page">パラメータと型</a></li><li><a href="queries.html">取得・更新と実行API</a></li></ul><p class="nav-group">リファレンス</p><ul><li><a href="configuration.html">設定・オプション一覧</a></li><li><a href="code-generation.html">DAO・Params・DTO生成</a></li><li><a href="cli.html">Artisan CLIリファレンス</a></li><li><a href="postgresql.html">PostgreSQL固有機能</a></li></ul><p class="nav-group">運用</p><ul><li><a href="operations.html">検証・デプロイ・運用</a></li><li><a href="troubleshooting.html">エラーとトラブルシューティング</a></li></ul></nav><p class="nav-note">PHP 8.4 / 8.5<br>Laravel 12 / 13<br>PostgreSQL 18 / 19 RC1</p>
+<nav aria-label="ガイドの章"><p class="nav-group">はじめに</p><ul><li><a href="index.html">概要・機能一覧</a></li><li><a href="getting-started.html">インストールと最初の実行</a></li></ul><p class="nav-group">使い方</p><ul><li><a href="templates.html">SQLテンプレート</a></li><li><a href="parameters.html" aria-current="page">パラメータと型</a></li><li><a href="queries.html">取得・更新と実行API</a></li></ul><p class="nav-group">リファレンス</p><ul><li><a href="configuration.html">設定・オプション一覧</a></li><li><a href="code-generation.html">DAO・Params・DTO生成</a></li><li><a href="cli.html">Artisan CLIリファレンス</a></li><li><a href="postgresql.html">PostgreSQL固有機能</a></li></ul><p class="nav-group">運用</p><ul><li><a href="postgresql-versions.html">PostgreSQLの対応環境と接続選択</a></li><li><a href="operations.html">検証・デプロイ・運用</a></li><li><a href="troubleshooting.html">エラーとトラブルシューティング</a></li></ul></nav><p class="nav-note">PHP 8.4 / 8.5<br>Laravel 12 / 13<br>PostgreSQL 18 / 19 RC1</p>
 </details></aside>
 <main id="content" tabindex="-1">
 <section id="search-results" hidden aria-label="検索結果"><h2>検索結果</h2><p class="status" role="status" aria-live="polite"></p><ol></ol></section>
-<header class="page-header"><span class="chapter">04 / 11 · 使い方</span><h1>パラメータと型</h1><p class="lead">必須キー・NULL・型の契約と、入力DTO・Codecの選び方。</p></header>
+<header class="page-header"><span class="chapter">04 / 12 · 使い方</span><h1>パラメータと型</h1><p class="lead">必須キー・NULL・型の契約と、入力DTO・Codecの選び方。</p></header>
 <div class="content-grid"><article aria-label="パラメータと型"><h2 id="schema">入力は宣言済みのキーだけ</h2>
 <p><code>queries.&lt;SQL ID&gt;.parameters</code> に型を宣言し、呼び出し時は連想配列か <code>SqlParameters</code> 実装を渡します。宣言したキーはnullableでも必須です。余分なキー、型違い、必須キーの欠落はSQL実行前に拒否します。</p>
 <div class="code-block"><div class="code-toolbar"><span>php</span></div><pre tabindex="0"><code class="language-php">// 宣言
@@ -203,6 +203,6 @@ final readonly class SearchParams implements SqlParameters
 <p>Codec IDは小文字で始まる英数字・<code>_.-</code>、1〜64文字、最大256登録。同じIDを上書きできません。SQLの型castはSQL側に固定し、IDからSQL断片を生成しません。Codecは値や接続を共有状態に保持せず、副作用のない決定的な変換にしてください。</p>
 <p>型の共有、標準配列、JSON文書、multirangeの例は <a href="postgresql.html#registration">PostgreSQL機能</a> を参照してください。</p></article><aside class="toc" aria-label="このページの目次"><strong>このページ</strong><ul><li><a href="#schema">入力は宣言済みのキーだけ</a></li><li><a href="#types">組込み型</a></li><li><a href="#options">スキーマオプション</a></li><li><a href="#arrays">INリストとPostgreSQL配列</a></li><li><a href="#json">JSONと精度</a></li><li><a href="#like">LIKE検索</a></li><li><a href="#input-dto">入力DTO</a></li><li><a href="#codecs">拡張Codec</a></li></ul></aside></div>
 <nav class="pagination" aria-label="前後のページ"><a href="templates.html">← SQLテンプレート</a><a href="queries.html">取得・更新と実行API →</a></nav>
-<footer>Laravel-2Way-SQL 利用ガイド · 2026-10-16<br>実装基準（公開パッケージ）: <a href="https://github.com/soudai/Laravel-2Way-PostgreSQL/tree/24029728677daff64f025cb969c4e51095358993">2402972</a>。PostgreSQL 19正式版の検証は未完了。</footer>
+<footer>Laravel-2Way-PostgreSQL 利用ガイド · 更新日 2026-10-20<br><a href="https://github.com/soudai/Laravel-2Way-PostgreSQL/blob/main/LICENSE">MITライセンス</a> · <a href="postgresql-versions.html">対応環境と検証範囲</a>。PostgreSQL 19正式版の検証は未完了。</footer>
 </main></div>
 </body></html>

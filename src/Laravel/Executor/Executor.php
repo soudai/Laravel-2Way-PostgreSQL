@@ -14,13 +14,12 @@ use Hft\TwoWaySql\Exception\ErrorCode;
 use Hft\TwoWaySql\Exception\ExpectedRowsException;
 use Hft\TwoWaySql\Exception\MappingException;
 use Hft\TwoWaySql\Exception\SqlException;
-use Hft\TwoWaySql\Exception\SqlExecutionException;
+use Hft\TwoWaySql\Execution\QueryOperation;
 use Hft\TwoWaySql\Laravel\Batch\BatchOptions;
 use Hft\TwoWaySql\Laravel\Batch\BatchResult;
 use Hft\TwoWaySql\Laravel\Batch\BatchRunner;
 use Hft\TwoWaySql\Laravel\Compatibility\SelectAdapter;
 use Hft\TwoWaySql\Laravel\ConnectionResolver;
-use Hft\TwoWaySql\Laravel\Diagnostics\ExecutionEvent;
 use Hft\TwoWaySql\Laravel\Pagination\PagePlanner;
 use Hft\TwoWaySql\Laravel\Pagination\PageQuery;
 use Hft\TwoWaySql\Laravel\Pagination\PageRequest;
@@ -77,31 +76,12 @@ final readonly class Executor
         if ($fetchSize < 1 || $fetchSize > 10000) {
             throw new SqlException(ErrorCode::ParameterType, sqlId: $id);
         }
-        $query = $this->compile($id, $parameters);
-        if ($query->kind !== QueryKind::Read) {
-            throw new SqlException(ErrorCode::QueryKind, sqlId: $id);
-        }
+        $query = $this->compileFor(QueryOperation::Each, $id, $parameters);
 
-        return $this->observe($query, function () use ($query, $consume, $fetchSize, $mode): int {
-            $connection = $this->connections->resolve($this->connectionName);
-            if ($connection->pretending()) {
-                return 0;
-            }
-            try {
-                $this->connections->validate($connection, true, $query->minimumPostgres);
-                if ($connection->getReadPdo() !== $connection->getRawPdo()) {
-                    throw new SqlException(ErrorCode::Unsupported);
-                }
-
-                return $connection->transaction(fn (): int => $this->scope($connection, false, $query, fn (): int => (new CursorRunner)->run($connection, $query, $fetchSize, $mode, $consume)), 1);
-            } catch (MappingException) {
-                throw new MappingException(sqlId: $query->sqlId);
-            } catch (SqlException $error) {
-                throw new SqlException(ErrorCode::from($error->errorCode), $error->span, $query->sqlId, $error->parameterPath);
-            } catch (Throwable $error) {
-                throw SqlExecutionException::translate($error, $query->sqlId);
-            }
-        });
+        return $this->pipeline()->run($this->connectionName, $query, ExecutionPolicy::Cursor,
+            fn (Connection $connection): int => $connection->pretending()
+                ? 0
+                : (new CursorRunner)->run($connection, $query, $fetchSize, $mode, $consume));
     }
 
     /** @param array<string, mixed>|SqlParameters $parameters */
@@ -115,10 +95,7 @@ final readonly class Executor
      */
     public function select(string $id, #[\SensitiveParameter] array|SqlParameters $parameters): array
     {
-        $query = $this->compile($id, $parameters);
-        if (! in_array($query->kind, [QueryKind::Read, QueryKind::Locking], true)) {
-            throw new SqlException(ErrorCode::QueryKind, sqlId: $id);
-        }
+        $query = $this->compileFor(QueryOperation::Select, $id, $parameters);
 
         $rows = [];
         foreach ($this->read($query) as $row) {
@@ -156,10 +133,7 @@ final readonly class Executor
     /** @param array<string, mixed>|SqlParameters $parameters */
     public function scalar(string $id, #[\SensitiveParameter] array|SqlParameters $parameters): mixed
     {
-        $query = $this->compile($id, $parameters);
-        if (! in_array($query->kind, [QueryKind::Read, QueryKind::Locking], true)) {
-            throw new SqlException(ErrorCode::QueryKind, sqlId: $id);
-        }
+        $query = $this->compileFor(QueryOperation::Scalar, $id, $parameters);
         $rows = $this->read($query, PDO::FETCH_NUM);
         if (count($rows) !== 1 || ! is_array($rows[0]) || count($rows[0]) !== 1) {
             throw new SqlException(ErrorCode::Cardinality, sqlId: $id);
@@ -171,10 +145,7 @@ final readonly class Executor
     /** @param array<string, mixed>|SqlParameters $parameters */
     public function execute(string $id, #[\SensitiveParameter] array|SqlParameters $parameters): int
     {
-        $query = $this->compile($id, $parameters);
-        if ($query->kind !== QueryKind::Write) {
-            throw new SqlException(ErrorCode::QueryKind, sqlId: $id);
-        }
+        $query = $this->compileFor(QueryOperation::Execute, $id, $parameters);
         $result = $this->write($query);
         if (! is_int($result)) {
             throw new SqlException(ErrorCode::Execution, sqlId: $id);
@@ -188,10 +159,7 @@ final readonly class Executor
      */
     public function returning(string $id, #[\SensitiveParameter] array|SqlParameters $parameters): array
     {
-        $query = $this->compile($id, $parameters);
-        if ($query->kind !== QueryKind::WriteReturning) {
-            throw new SqlException(ErrorCode::QueryKind, sqlId: $id);
-        }
+        $query = $this->compileFor(QueryOperation::Returning, $id, $parameters);
         $result = $this->write($query);
         if (! is_array($result)) {
             throw new SqlException(ErrorCode::Execution, sqlId: $id);
@@ -257,37 +225,19 @@ final readonly class Executor
     public function returningAs(string $class, string $id, #[\SensitiveParameter] array|SqlParameters $parameters): array
     {
         $this->mapper->validate($class);
-        $query = $this->compile($id, $parameters);
-        if ($query->kind !== QueryKind::WriteReturning) {
-            throw new SqlException(ErrorCode::QueryKind, sqlId: $id);
-        }
+        $query = $this->compileFor(QueryOperation::Returning, $id, $parameters);
 
-        return $this->observe($query, function () use ($class, $query): array {
-            $connection = $this->connections->resolve($this->connectionName);
-            try {
-                $operation = function () use ($connection, $class, $query): array {
-                    if (! $connection->pretending()) {
-                        $this->connections->validate($connection, false, $query->minimumPostgres);
-                    }
-                    $rows = (new SelectAdapter)->select($connection, $query, false, PDO::FETCH_NAMED);
-                    if (! $connection->pretending()) {
-                        $connection->recordsHaveBeenModified(true);
-                    }
-
-                    return array_map(fn (#[\SensitiveParameter] mixed $row): object => $this->mapRow($class, $query->sqlId, $row), $rows);
-                };
-
-                // Mapping failure must roll back this write, including inside an ambient transaction.
-                $scoped = fn (): array => $this->scope($connection, false, $query, $operation);
-
-                return $connection->pretending() ? $scoped() : $connection->transaction($scoped, 1);
-            } catch (MappingException) {
-                throw new MappingException(sqlId: $query->sqlId);
-            } catch (SqlException $error) {
-                throw new SqlException(ErrorCode::from($error->errorCode), $error->span, $query->sqlId, $error->parameterPath);
-            } catch (Throwable $error) {
-                throw SqlExecutionException::translate($error, $query->sqlId);
+        return $this->pipeline()->run($this->connectionName, $query, ExecutionPolicy::MappedWrite, function (Connection $connection) use ($class, $query): array {
+            $rows = (new SelectAdapter)->select($connection, $query, false, PDO::FETCH_NAMED);
+            if (! $connection->pretending()) {
+                $connection->recordsHaveBeenModified(true);
             }
+            $mapped = [];
+            foreach ($rows as $row) {
+                $mapped[] = $this->mapRow($class, $query->sqlId, $row);
+            }
+
+            return $mapped;
         });
     }
 
@@ -296,10 +246,7 @@ final readonly class Executor
      */
     private function mappedRows(string $id, #[\SensitiveParameter] array|SqlParameters $parameters): array
     {
-        $query = $this->compile($id, $parameters);
-        if (! in_array($query->kind, [QueryKind::Read, QueryKind::Locking], true)) {
-            throw new SqlException(ErrorCode::QueryKind, sqlId: $id);
-        }
+        $query = $this->compileFor(QueryOperation::Select, $id, $parameters);
 
         return $this->read($query, PDO::FETCH_NAMED);
     }
@@ -330,27 +277,10 @@ final readonly class Executor
     /** @return list<mixed> */
     private function read(#[\SensitiveParameter] CompiledQuery $query, int $fetchMode = PDO::FETCH_OBJ): array
     {
-        return $this->observe($query, fn (): array => $this->performRead($query, $fetchMode));
-    }
+        $policy = $query->kind === QueryKind::Read ? ExecutionPolicy::Read : ExecutionPolicy::Locking;
 
-    /** @return list<mixed> */
-    private function performRead(#[\SensitiveParameter] CompiledQuery $query, int $fetchMode): array
-    {
-        $connection = $this->connections->resolve($this->connectionName);
-        if ($query->kind === QueryKind::Locking && $connection->transactionLevel() === 0) {
-            throw new SqlException(ErrorCode::TransactionRequired, sqlId: $query->sqlId);
-        }
-        try {
-            if (! $connection->pretending()) {
-                $this->connections->validate($connection, $query->kind === QueryKind::Read, $query->minimumPostgres);
-            }
-
-            return $this->scope($connection, $query->kind === QueryKind::Read, $query, fn (): array => (new SelectAdapter)->select($connection, $query, $query->kind === QueryKind::Read, $fetchMode));
-        } catch (SqlException $e) {
-            throw new SqlException(ErrorCode::from($e->errorCode), $e->span, $query->sqlId, $e->parameterPath);
-        } catch (Throwable $e) {
-            throw SqlExecutionException::translate($e, $query->sqlId);
-        }
+        return $this->pipeline()->run($this->connectionName, $query, $policy,
+            fn (Connection $connection): array => (new SelectAdapter)->select($connection, $query, $policy->readsPdo(), $fetchMode));
     }
 
     /** @param array<string, mixed>|SqlParameters $parameters */
@@ -359,10 +289,7 @@ final readonly class Executor
         if ($expected < 0) {
             throw new SqlException(ErrorCode::ParameterType, sqlId: $id);
         }
-        $query = $this->compile($id, $parameters);
-        if ($query->kind !== QueryKind::Write) {
-            throw new SqlException(ErrorCode::QueryKind, sqlId: $id);
-        }
+        $query = $this->compileFor(QueryOperation::ExecuteExpecting, $id, $parameters);
         $result = $this->write($query, $expected);
         if (! is_int($result)) {
             throw new SqlException(ErrorCode::Execution, sqlId: $id);
@@ -374,43 +301,21 @@ final readonly class Executor
     /** @return int|list<stdClass> */
     private function write(#[\SensitiveParameter] CompiledQuery $query, ?int $expected = null): int|array
     {
-        return $this->observe($query, fn (): int|array => $this->performWrite($query, $expected));
-    }
+        $policy = $expected === null ? ExecutionPolicy::Write : ExecutionPolicy::CheckedWrite;
 
-    /** @return int|list<stdClass> */
-    private function performWrite(#[\SensitiveParameter] CompiledQuery $query, ?int $expected): int|array
-    {
-        $connection = $this->connections->resolve($this->connectionName);
-        try {
-            $operation = function () use ($connection, $query, $expected): int|array {
-                if (! $connection->pretending()) {
-                    $this->connections->validate($connection, false, $query->minimumPostgres);
+        return $this->pipeline()->run($this->connectionName, $query, $policy, function (Connection $connection) use ($query, $expected): int|array {
+            $result = $query->kind === QueryKind::Write
+                ? $connection->affectingStatement($query->sql(), $query->bindings())
+                : $this->fetch($connection, $query, false);
+            if (! $connection->pretending()) {
+                $connection->recordsHaveBeenModified(true);
+                if ($expected !== null && is_int($result) && $result !== $expected) {
+                    throw new ExpectedRowsException($expected, $result, $query->sqlId);
                 }
-                $result = $query->kind === QueryKind::Write
-                    ? $connection->affectingStatement($query->sql(), $query->bindings())
-                    : $this->fetch($connection, $query, false);
-                if (! $connection->pretending()) {
-                    $connection->recordsHaveBeenModified(true);
-                    if ($expected !== null && is_int($result) && $result !== $expected) {
-                        throw new ExpectedRowsException($expected, $result, $query->sqlId);
-                    }
-                }
-
-                return $result;
-            };
-            $scoped = fn (): int|array => $this->scope($connection, false, $query, $operation);
-            if ($connection->pretending() || ($expected === null && $connection->transactionLevel() > 0)) {
-                return $scoped();
             }
 
-            return $connection->transaction($scoped, 1);
-        } catch (ExpectedRowsException $e) {
-            throw new ExpectedRowsException($e->expected, $e->actual, $query->sqlId);
-        } catch (SqlException $e) {
-            throw new SqlException(ErrorCode::from($e->errorCode), $e->span, $query->sqlId, $e->parameterPath);
-        } catch (Throwable $e) {
-            throw SqlExecutionException::translate($e, $query->sqlId);
-        }
+            return $result;
+        });
     }
 
     /** @return list<stdClass> */
@@ -463,51 +368,20 @@ final readonly class Executor
         return new PageResult($rows, $total, $page->page, $page->perPage);
     }
 
-    /** @template T
-     * @param  callable():T  $operation
-     * @return T
-     */
-    private function observe(#[\SensitiveParameter] CompiledQuery $query, #[\SensitiveParameter] callable $operation): mixed
+    /** @param array<string, mixed>|SqlParameters $parameters */
+    private function compileFor(QueryOperation $operation, string $id, #[\SensitiveParameter] array|SqlParameters $parameters): CompiledQuery
     {
-        if ($this->observer === null) {
-            return $operation();
+        $query = $this->compile($id, $parameters);
+        if (! $operation->allows($query->kind)) {
+            throw new SqlException(ErrorCode::QueryKind, sqlId: $id);
         }
-        $start = hrtime(true);
-        $rows = null;
-        $error = null;
-        $state = null;
-        try {
-            $result = $operation();
-            $rows = is_array($result) ? count($result) : (is_int($result) ? $result : null);
 
-            return $result;
-        } catch (SqlException $e) {
-            $error = $e->errorCode;
-            $state = $e instanceof SqlExecutionException ? $e->sqlState : null;
-            if ($e instanceof ExpectedRowsException) {
-                $rows = $e->actual;
-            }
-            throw $e;
-        } finally {
-            $sourceHash = $query->diagnostics['sourceHash'] ?? $query->hash;
-            $branches = $query->diagnostics['branches'] ?? [];
-            try {
-                $this->observer->record(new ExecutionEvent(
-                    substr($query->sqlId, 0, 128), is_string($sourceHash) ? $sourceHash : $query->hash, $query->hash,
-                    (int) ((hrtime(true) - $start) / 1000), $rows, $error, $state, is_array($branches) ? $branches : [],
-                ));
-            } catch (Throwable) { /* An observer cannot replace the operation result or error. */
-            }
-        }
+        return $query;
     }
 
-    /** @template T
-     * @param  callable():T  $operation
-     * @return T
-     */
-    private function scope(#[\SensitiveParameter] Connection $connection, bool $read, #[\SensitiveParameter] CompiledQuery $query, #[\SensitiveParameter] callable $operation): mixed
+    private function pipeline(): ExecutionPipeline
     {
-        return (new ExecutionScope)->run($connection, $read, $this->options, $operation, $this->planAdvice->forQuery($this->options->planAdviceId, $query));
+        return new ExecutionPipeline($this->connections, $this->options, $this->planAdvice, $this->observer);
     }
 
     /** @return array{connection:?string} */
