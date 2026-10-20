@@ -4,24 +4,24 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="型付き配列、JSON文書、期間型、MERGE、OLD/NEWとPostgreSQL 19の機能。">
-<title>PostgreSQL固有機能 | Laravel-2Way-SQL</title>
+<title>PostgreSQL固有機能 | Laravel-2Way-PostgreSQL</title>
 <link rel="stylesheet" href="assets/style.css">
 <script src="assets/search-index.js" defer></script>
 <script src="assets/docs.js" defer></script>
 </head>
 <body>
 <a class="skip-link" href="#content">本文へ移動</a>
-<header class="topbar"><a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">2W</span><span>Laravel-2Way-SQL <small>/ 利用ガイド</small></span></a><a href="https://github.com/soudai/Laravel-2Way-PostgreSQL">配布リポジトリ ↗</a></header>
+<header class="topbar"><a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">2W</span><span>Laravel-2Way-PostgreSQL <small>/ 利用ガイド</small></span></a><a href="https://github.com/soudai/Laravel-2Way-PostgreSQL">配布リポジトリ ↗</a></header>
 <div class="layout">
 <aside class="sidebar"><details class="navigation" open><summary>ドキュメント目次・検索</summary>
 <div class="search-control" hidden><label for="doc-search">ドキュメントを検索</label><input id="doc-search" type="search" placeholder="API名・設定キー・単語" autocomplete="off" aria-controls="search-results"><p class="search-hint">Enter：検索結果へ / Esc：クリア</p></div>
-<nav aria-label="ガイドの章"><p class="nav-group">はじめに</p><ul><li><a href="index.html">概要・機能一覧</a></li><li><a href="getting-started.html">インストールと最初の実行</a></li></ul><p class="nav-group">使い方</p><ul><li><a href="templates.html">SQLテンプレート</a></li><li><a href="parameters.html">パラメータと型</a></li><li><a href="queries.html">取得・更新と実行API</a></li></ul><p class="nav-group">リファレンス</p><ul><li><a href="configuration.html">設定・オプション一覧</a></li><li><a href="code-generation.html">DAO・Params・DTO生成</a></li><li><a href="cli.html">Artisan CLIリファレンス</a></li><li><a href="postgresql.html" aria-current="page">PostgreSQL固有機能</a></li></ul><p class="nav-group">運用</p><ul><li><a href="operations.html">検証・デプロイ・運用</a></li><li><a href="troubleshooting.html">エラーとトラブルシューティング</a></li></ul></nav><p class="nav-note">PHP 8.4 / 8.5<br>Laravel 12 / 13<br>PostgreSQL 18 / 19 RC1</p>
+<nav aria-label="ガイドの章"><p class="nav-group">はじめに</p><ul><li><a href="index.html">概要・機能一覧</a></li><li><a href="getting-started.html">インストールと最初の実行</a></li></ul><p class="nav-group">使い方</p><ul><li><a href="templates.html">SQLテンプレート</a></li><li><a href="parameters.html">パラメータと型</a></li><li><a href="queries.html">取得・更新と実行API</a></li></ul><p class="nav-group">リファレンス</p><ul><li><a href="configuration.html">設定・オプション一覧</a></li><li><a href="code-generation.html">DAO・Params・DTO生成</a></li><li><a href="cli.html">Artisan CLIリファレンス</a></li><li><a href="postgresql.html" aria-current="page">PostgreSQL固有機能</a></li></ul><p class="nav-group">運用</p><ul><li><a href="postgresql-versions.html">PostgreSQLの対応環境と接続選択</a></li><li><a href="operations.html">検証・デプロイ・運用</a></li><li><a href="troubleshooting.html">エラーとトラブルシューティング</a></li></ul></nav><p class="nav-note">PHP 8.4 / 8.5<br>Laravel 12 / 13<br>PostgreSQL 18 / 19 RC1</p>
 </details></aside>
 <main id="content" tabindex="-1">
 <section id="search-results" hidden aria-label="検索結果"><h2>検索結果</h2><p class="status" role="status" aria-live="polite"></p><ol></ol></section>
-<header class="page-header"><span class="chapter">09 / 11 · リファレンス</span><h1>PostgreSQL固有機能</h1><p class="lead">型付き配列、JSON文書、期間型、MERGE、OLD/NEWとPostgreSQL 19の機能。</p></header>
+<header class="page-header"><span class="chapter">09 / 12 · リファレンス</span><h1>PostgreSQL固有機能</h1><p class="lead">型付き配列、JSON文書、期間型、MERGE、OLD/NEWとPostgreSQL 19の機能。</p></header>
 <div class="content-grid"><article aria-label="PostgreSQL固有機能"><h2 id="versions">バージョン別の使い分け</h2>
-<p>現在の対象はPostgreSQL 18/19です。19はRC1で先行検証したもので、正式版の検証完了とは区別しています。</p>
+<p>現在の対象はPostgreSQL 18/19です。19はRC1で先行検証したもので、正式版の検証完了とは区別しています。<a href="postgresql-versions.html">検証したリリースと接続選択の詳細</a>を確認してください。</p>
 <div class="table-scroll" tabindex="0" role="region" aria-label="横スクロールできる参照表"><table>
 <thead>
 <tr>
@@ -176,7 +176,7 @@ RETURNING id, value, version, old.id AS old_id
 <h2 id="custom-types">独自型を共有する</h2>
 <p>入力Codecと結果ColumnConverterを実装し、<code>registerType(new TypeDescriptor(id, inputType, resultType, postgresType, nullable: ...), inputCodec, resultConverter)</code> で登録します。</p>
 <p>同じIDを入力/結果の <code>codec:ID</code> とDTOのSqlTypeに指定すると、生成・PHPStanでも共有できます。descriptorと利用箇所の両方でNULLを許可する必要があります。NULL時はconverterを呼びません。変換の意味を変える場合はIDを更新し、生成物も再生成してください。</p></article><aside class="toc" aria-label="このページの目次"><strong>このページ</strong><ul><li><a href="#versions">バージョン別の使い分け</a></li><li><a href="#registration">標準Codecの登録</a></li><li><a href="#typed-arrays">型付き配列</a></li><li><a href="#json-document">JSON文書の精度</a></li><li><a href="#ranges">range / multirange</a></li><li><a href="#merge">MERGEと変更件数</a></li><li><a href="#returning">OLD/NEW RETURNING</a></li><li><a href="#get-or-create">PostgreSQL 19のget-or-create</a></li><li><a href="#plan-advice">PostgreSQL 19のplan advice</a></li><li><a href="#custom-types">独自型を共有する</a></li></ul></aside></div>
-<nav class="pagination" aria-label="前後のページ"><a href="cli.html">← Artisan CLIリファレンス</a><a href="operations.html">検証・デプロイ・運用 →</a></nav>
-<footer>Laravel-2Way-SQL 利用ガイド · 2026-10-16<br>実装基準（公開パッケージ）: <a href="https://github.com/soudai/Laravel-2Way-PostgreSQL/tree/24029728677daff64f025cb969c4e51095358993">2402972</a>。PostgreSQL 19正式版の検証は未完了。</footer>
+<nav class="pagination" aria-label="前後のページ"><a href="cli.html">← Artisan CLIリファレンス</a><a href="postgresql-versions.html">PostgreSQLの対応環境と接続選択 →</a></nav>
+<footer>Laravel-2Way-PostgreSQL 利用ガイド · 更新日 2026-10-20<br><a href="https://github.com/soudai/Laravel-2Way-PostgreSQL/blob/main/LICENSE">MITライセンス</a> · <a href="postgresql-versions.html">対応環境と検証範囲</a>。PostgreSQL 19正式版の検証は未完了。</footer>
 </main></div>
 </body></html>

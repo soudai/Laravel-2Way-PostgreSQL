@@ -6,11 +6,12 @@ namespace Hft\TwoWaySql\Laravel;
 
 use Hft\TwoWaySql\Exception\ErrorCode;
 use Hft\TwoWaySql\Exception\SqlException;
+use Hft\TwoWaySql\Laravel\Contracts\ExecutionConnection;
 use Illuminate\Database\Connection;
 use Illuminate\Database\DatabaseManager;
 use Throwable;
 
-final readonly class ConnectionResolver
+final readonly class ConnectionResolver implements ExecutionConnection
 {
     public function __construct(private DatabaseManager $database, private ConnectionGuard $guard = new ConnectionGuard) {}
 

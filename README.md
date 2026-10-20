@@ -11,11 +11,18 @@ GitHub Pagesは、`main` の `/docs` を公開元として自動更新します�
 [HTMLソース](docs/html/index.html)はリポジトリにも同梱しています。
 リポジトリを取得し、`docs/html/index.html` をブラウザで開くとローカルでも閲覧できます。CSS・JavaScriptも同梱しています。
 
+- [導入と最初の実行](docs/html/getting-started.html)
+- [実行API](docs/html/queries.html)・[設定とオプション](docs/html/configuration.html)
+- [PostgreSQLの対応環境・接続選択・検証範囲](docs/html/postgresql-versions.html)
+- [デプロイと運用](docs/html/operations.html)・[変更履歴](CHANGELOG.md)
+
 ## 動作要件
 
 - PHP 8.4 / 8.5（64bit、`pdo_pgsql`・`mbstring` 拡張）
 - Laravel 12 / 13
 - PostgreSQL 18 / 19（UTF8、`standard_conforming_strings=on`。19はRC1で検証済み、正式版は未検証）
+
+確認済みのDBリリースはPostgreSQL 18.6 / 19rc1です。PHP 8.4 / 8.5・Laravel 12 / 13との通常8構成、最低依存2構成で実装の回帰テストと配布確認を行っています。詳細と制限は[対応環境と検証範囲](docs/html/postgresql-versions.html#verified-environments)を参照してください。
 
 ## インストール
 
@@ -26,6 +33,8 @@ composer config repositories.twoway vcs https://github.com/soudai/Laravel-2Way-P
 composer require 'soudai/laravel-2way-postgresql:dev-main'
 php artisan vendor:publish --tag=twoway-sql-config
 ```
+
+`dev-main` の取得コミットは、利用アプリの `composer.lock` で固定してください。更新時の確認事項は[変更履歴](CHANGELOG.md)と[運用ガイド](docs/html/operations.html)にまとめています。
 
 ServiceProviderはLaravelのパッケージ検出で自動登録されます。
 PHPの名前空間は `Hft\TwoWaySql` です。

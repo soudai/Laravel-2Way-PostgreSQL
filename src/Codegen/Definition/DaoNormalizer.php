@@ -10,6 +10,7 @@ use Hft\TwoWaySql\Contracts\SqlParameters;
 use Hft\TwoWaySql\Contracts\TemplateRepository;
 use Hft\TwoWaySql\Exception\ErrorCode;
 use Hft\TwoWaySql\Exception\SqlException;
+use Hft\TwoWaySql\Execution\QueryOperation;
 use Hft\TwoWaySql\Mapping\DtoMapper;
 use Hft\TwoWaySql\Parameter\ParameterSchema;
 use Hft\TwoWaySql\Parameter\Registry\CodecRegistry;
@@ -53,15 +54,13 @@ final readonly class DaoNormalizer
             }
             $attribute = $attributes[0]->newInstance();
             $id = $attribute->id;
-            if (! in_array($attribute->mode, ['select', 'one', 'oneOrNull', 'scalar', 'execute', 'returning'], true)) {
+            $operation = QueryOperation::tryFrom($attribute->mode);
+            if ($operation === null || ! $operation->supportsDao()) {
                 throw new SqlException(ErrorCode::Generation);
             }
             $query = $this->repository->get($id);
             $this->parser->parse($query);
-            $expectedKinds = match ($attribute->mode) {
-                'execute' => ['write'], 'returning' => ['write_returning'], default => ['read', 'locking'],
-            };
-            if (! in_array($query->kind->value, $expectedKinds, true)) {
+            if (! $operation->allows($query->kind)) {
                 throw new SqlException(ErrorCode::Generation);
             }
             $columns = array_key_exists($id, $this->resultContracts) ? $this->resultContracts[$id] : [];
@@ -127,7 +126,7 @@ final readonly class DaoNormalizer
     private function returnType(SqlQuery $attribute, string $type, ResultSchema $schema): string
     {
         if ($attribute->result !== null) {
-            if (in_array($attribute->mode, ['scalar', 'execute'], true) || ! TypeNames::className($attribute->result) || ! class_exists($attribute->result)) {
+            if (QueryOperation::from($attribute->mode)->dtoMethod() === null || ! TypeNames::className($attribute->result) || ! class_exists($attribute->result)) {
                 throw new SqlException(ErrorCode::Generation);
             }
             $this->dto($attribute->result, $schema);

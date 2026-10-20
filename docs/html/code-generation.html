@@ -4,22 +4,22 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="SQLの宣言を型付きコードへ。生成物の鮮度とPHPStanの検査を組み込む。">
-<title>DAO・Params・DTO生成 | Laravel-2Way-SQL</title>
+<title>DAO・Params・DTO生成 | Laravel-2Way-PostgreSQL</title>
 <link rel="stylesheet" href="assets/style.css">
 <script src="assets/search-index.js" defer></script>
 <script src="assets/docs.js" defer></script>
 </head>
 <body>
 <a class="skip-link" href="#content">本文へ移動</a>
-<header class="topbar"><a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">2W</span><span>Laravel-2Way-SQL <small>/ 利用ガイド</small></span></a><a href="https://github.com/soudai/Laravel-2Way-PostgreSQL">配布リポジトリ ↗</a></header>
+<header class="topbar"><a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">2W</span><span>Laravel-2Way-PostgreSQL <small>/ 利用ガイド</small></span></a><a href="https://github.com/soudai/Laravel-2Way-PostgreSQL">配布リポジトリ ↗</a></header>
 <div class="layout">
 <aside class="sidebar"><details class="navigation" open><summary>ドキュメント目次・検索</summary>
 <div class="search-control" hidden><label for="doc-search">ドキュメントを検索</label><input id="doc-search" type="search" placeholder="API名・設定キー・単語" autocomplete="off" aria-controls="search-results"><p class="search-hint">Enter：検索結果へ / Esc：クリア</p></div>
-<nav aria-label="ガイドの章"><p class="nav-group">はじめに</p><ul><li><a href="index.html">概要・機能一覧</a></li><li><a href="getting-started.html">インストールと最初の実行</a></li></ul><p class="nav-group">使い方</p><ul><li><a href="templates.html">SQLテンプレート</a></li><li><a href="parameters.html">パラメータと型</a></li><li><a href="queries.html">取得・更新と実行API</a></li></ul><p class="nav-group">リファレンス</p><ul><li><a href="configuration.html">設定・オプション一覧</a></li><li><a href="code-generation.html" aria-current="page">DAO・Params・DTO生成</a></li><li><a href="cli.html">Artisan CLIリファレンス</a></li><li><a href="postgresql.html">PostgreSQL固有機能</a></li></ul><p class="nav-group">運用</p><ul><li><a href="operations.html">検証・デプロイ・運用</a></li><li><a href="troubleshooting.html">エラーとトラブルシューティング</a></li></ul></nav><p class="nav-note">PHP 8.4 / 8.5<br>Laravel 12 / 13<br>PostgreSQL 18 / 19 RC1</p>
+<nav aria-label="ガイドの章"><p class="nav-group">はじめに</p><ul><li><a href="index.html">概要・機能一覧</a></li><li><a href="getting-started.html">インストールと最初の実行</a></li></ul><p class="nav-group">使い方</p><ul><li><a href="templates.html">SQLテンプレート</a></li><li><a href="parameters.html">パラメータと型</a></li><li><a href="queries.html">取得・更新と実行API</a></li></ul><p class="nav-group">リファレンス</p><ul><li><a href="configuration.html">設定・オプション一覧</a></li><li><a href="code-generation.html" aria-current="page">DAO・Params・DTO生成</a></li><li><a href="cli.html">Artisan CLIリファレンス</a></li><li><a href="postgresql.html">PostgreSQL固有機能</a></li></ul><p class="nav-group">運用</p><ul><li><a href="postgresql-versions.html">PostgreSQLの対応環境と接続選択</a></li><li><a href="operations.html">検証・デプロイ・運用</a></li><li><a href="troubleshooting.html">エラーとトラブルシューティング</a></li></ul></nav><p class="nav-note">PHP 8.4 / 8.5<br>Laravel 12 / 13<br>PostgreSQL 18 / 19 RC1</p>
 </details></aside>
 <main id="content" tabindex="-1">
 <section id="search-results" hidden aria-label="検索結果"><h2>検索結果</h2><p class="status" role="status" aria-live="polite"></p><ol></ol></section>
-<header class="page-header"><span class="chapter">07 / 11 · リファレンス</span><h1>DAO・Params・DTO生成</h1><p class="lead">SQLの宣言を型付きコードへ。生成物の鮮度とPHPStanの検査を組み込む。</p></header>
+<header class="page-header"><span class="chapter">07 / 12 · リファレンス</span><h1>DAO・Params・DTO生成</h1><p class="lead">SQLの宣言を型付きコードへ。生成物の鮮度とPHPStanの検査を組み込む。</p></header>
 <div class="content-grid"><article aria-label="DAO・Params・DTO生成"><h2 id="workflow">生成の流れ</h2>
 <p>SQLと入力・結果スキーマを宣言し、Params/DTOとDAOをビルド時に生成します。通常リクエスト中にコード生成やDAOのreflection dispatchは行いません。DBへ接続せず生成できます。</p>
 <h2 id="dao">DAO interfaceと結果DTO</h2>
@@ -99,7 +99,7 @@ parameters:
             - %currentWorkingDirectory%/app/Generated/TwoWaySql/manifest.json
         sqlRoot: %currentWorkingDirectory%/resources/sql
 </code></pre>
-</div><p>雛形も生成している場合は <code>app/Generated/TwoWaySql/Schema/manifest.json</code> をmanifestsへ追加します。開発用パッケージではincludeを <code>vendor/hft/laravel-2way-sql/extension.neon</code> に変更します。</p>
+</div><p>雛形も生成している場合は <code>app/Generated/TwoWaySql/Schema/manifest.json</code> をmanifestsへ追加します。</p>
 <div class="table-scroll" tabindex="0" role="region" aria-label="横スクロールできる参照表"><table>
 <thead>
 <tr>
@@ -139,6 +139,6 @@ parameters:
 <p><code>twoway:inspect</code> は隔離DBでSQLを実行して列alias/native typeの候補を取得します。nullableはunknownで、宣言へ自動反映しません。通常inspectは差分があっても終了0。CIでは <code>--check --against=DTO短名</code> または <code>--check --plan=比較計画.json</code> を使います。</p>
 <p>入力ファイル、全オプションと終了コードは <a href="cli.html#inspect">CLIリファレンス</a> にまとめています。</p></article><aside class="toc" aria-label="このページの目次"><strong>このページ</strong><ul><li><a href="#workflow">生成の流れ</a></li><li><a href="#dao">DAO interfaceと結果DTO</a></li><li><a href="#generate">生成とDI</a></li><li><a href="#schema">Params / DTO雛形</a></li><li><a href="#check">差分検査と手編集の保護</a></li><li><a href="#phpstan">PHPStan</a></li><li><a href="#metadata">実DBの列metadataを比較</a></li></ul></aside></div>
 <nav class="pagination" aria-label="前後のページ"><a href="configuration.html">← 設定・オプション一覧</a><a href="cli.html">Artisan CLIリファレンス →</a></nav>
-<footer>Laravel-2Way-SQL 利用ガイド · 2026-10-16<br>実装基準（公開パッケージ）: <a href="https://github.com/soudai/Laravel-2Way-PostgreSQL/tree/24029728677daff64f025cb969c4e51095358993">2402972</a>。PostgreSQL 19正式版の検証は未完了。</footer>
+<footer>Laravel-2Way-PostgreSQL 利用ガイド · 更新日 2026-10-20<br><a href="https://github.com/soudai/Laravel-2Way-PostgreSQL/blob/main/LICENSE">MITライセンス</a> · <a href="postgresql-versions.html">対応環境と検証範囲</a>。PostgreSQL 19正式版の検証は未完了。</footer>
 </main></div>
 </body></html>

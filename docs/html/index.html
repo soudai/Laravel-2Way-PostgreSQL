@@ -4,22 +4,22 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="SQLファイルを中心に、LaravelとPostgreSQLをつなぐための利用ガイド。">
-<title>概要・機能一覧 | Laravel-2Way-SQL</title>
+<title>概要・機能一覧 | Laravel-2Way-PostgreSQL</title>
 <link rel="stylesheet" href="assets/style.css">
 <script src="assets/search-index.js" defer></script>
 <script src="assets/docs.js" defer></script>
 </head>
 <body>
 <a class="skip-link" href="#content">本文へ移動</a>
-<header class="topbar"><a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">2W</span><span>Laravel-2Way-SQL <small>/ 利用ガイド</small></span></a><a href="https://github.com/soudai/Laravel-2Way-PostgreSQL">配布リポジトリ ↗</a></header>
+<header class="topbar"><a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true">2W</span><span>Laravel-2Way-PostgreSQL <small>/ 利用ガイド</small></span></a><a href="https://github.com/soudai/Laravel-2Way-PostgreSQL">配布リポジトリ ↗</a></header>
 <div class="layout">
 <aside class="sidebar"><details class="navigation" open><summary>ドキュメント目次・検索</summary>
 <div class="search-control" hidden><label for="doc-search">ドキュメントを検索</label><input id="doc-search" type="search" placeholder="API名・設定キー・単語" autocomplete="off" aria-controls="search-results"><p class="search-hint">Enter：検索結果へ / Esc：クリア</p></div>
-<nav aria-label="ガイドの章"><p class="nav-group">はじめに</p><ul><li><a href="index.html" aria-current="page">概要・機能一覧</a></li><li><a href="getting-started.html">インストールと最初の実行</a></li></ul><p class="nav-group">使い方</p><ul><li><a href="templates.html">SQLテンプレート</a></li><li><a href="parameters.html">パラメータと型</a></li><li><a href="queries.html">取得・更新と実行API</a></li></ul><p class="nav-group">リファレンス</p><ul><li><a href="configuration.html">設定・オプション一覧</a></li><li><a href="code-generation.html">DAO・Params・DTO生成</a></li><li><a href="cli.html">Artisan CLIリファレンス</a></li><li><a href="postgresql.html">PostgreSQL固有機能</a></li></ul><p class="nav-group">運用</p><ul><li><a href="operations.html">検証・デプロイ・運用</a></li><li><a href="troubleshooting.html">エラーとトラブルシューティング</a></li></ul></nav><p class="nav-note">PHP 8.4 / 8.5<br>Laravel 12 / 13<br>PostgreSQL 18 / 19 RC1</p>
+<nav aria-label="ガイドの章"><p class="nav-group">はじめに</p><ul><li><a href="index.html" aria-current="page">概要・機能一覧</a></li><li><a href="getting-started.html">インストールと最初の実行</a></li></ul><p class="nav-group">使い方</p><ul><li><a href="templates.html">SQLテンプレート</a></li><li><a href="parameters.html">パラメータと型</a></li><li><a href="queries.html">取得・更新と実行API</a></li></ul><p class="nav-group">リファレンス</p><ul><li><a href="configuration.html">設定・オプション一覧</a></li><li><a href="code-generation.html">DAO・Params・DTO生成</a></li><li><a href="cli.html">Artisan CLIリファレンス</a></li><li><a href="postgresql.html">PostgreSQL固有機能</a></li></ul><p class="nav-group">運用</p><ul><li><a href="postgresql-versions.html">PostgreSQLの対応環境と接続選択</a></li><li><a href="operations.html">検証・デプロイ・運用</a></li><li><a href="troubleshooting.html">エラーとトラブルシューティング</a></li></ul></nav><p class="nav-note">PHP 8.4 / 8.5<br>Laravel 12 / 13<br>PostgreSQL 18 / 19 RC1</p>
 </details></aside>
 <main id="content" tabindex="-1">
 <section id="search-results" hidden aria-label="検索結果"><h2>検索結果</h2><p class="status" role="status" aria-live="polite"></p><ol></ol></section>
-<header class="page-header"><span class="chapter">01 / 11 · はじめに</span><h1>概要・機能一覧</h1><p class="lead">SQLファイルを中心に、LaravelとPostgreSQLをつなぐための利用ガイド。</p></header>
+<header class="page-header"><span class="chapter">01 / 12 · はじめに</span><h1>概要・機能一覧</h1><p class="lead">SQLファイルを中心に、LaravelとPostgreSQLをつなぐための利用ガイド。</p></header>
 <div class="content-grid"><article aria-label="概要・機能一覧"><div class="hero-grid">
 <div><span class="eyebrow">SQL-FIRST · LARAVEL · POSTGRESQL</span><p class="hero-line">SQLを、そのまま<br>アプリケーションへ。</p><p>DBクライアントではサンプル値で実行し、Laravelでは同じSQLファイルに入力をバインド。複雑な検索・集計・更新を、SQLとして管理できます。</p><a class="button" href="getting-started.html">最初のクエリを実行する <span aria-hidden="true">→</span></a></div>
 <div class="flow" aria-label="実行の流れ"><span>01 / resources/sql</span><strong>SQLテンプレート</strong><span>02 / config/twoway-sql.php</span><strong>入力型と実行種別を宣言</strong><span>03 / TwoWaySql</span><strong>バインドしてLaravel接続で実行</strong></div>
@@ -108,7 +108,7 @@
 </tr>
 </tbody>
 </table>
-</div><p>このガイドは実装済みのM4機能を含みます。現行コードの対象はPostgreSQL 18以降で、17には接続しません。19専用SQLにはクエリ単位のバージョン宣言が必要です。</p>
+</div><p>現行コードの対象はPostgreSQL 18以降で、17には接続しません。19専用SQLにはクエリ単位のバージョン宣言が必要です。確認したリリースと接続先の選び方は<a href="postgresql-versions.html">対応環境と接続選択</a>にまとめています。</p>
 <h2 id="reading">読み進め方</h2>
 <div class="cards">
 <a href="getting-started.html"><span>01 / START</span><strong>まず1つ動かす</strong><p>Composer導入、接続設定、SQL登録、実行まで。</p></a>
@@ -119,10 +119,10 @@
 
 <h2 id="boundaries">アプリケーションが決めること</h2>
 <p>Eloquentと併用できますが、Global Scope、認可、テナント条件、SoftDeletes、取得件数制限は自動適用されません。SQLに明記してください。任意のユーザー投稿SQLを実行するための機能ではありません。</p>
-<p>SQLからの完全な型推論、COUNT SQLの自動生成、書き込みの自動再試行、他DB対応、Domaの完全互換は提供しません。静的SQL断片のinclude・COPY・WAIT FOR LSNは設計試作のみで、公開APIには含まれません。</p>
+<p>SQLからの完全な型推論、COUNT SQLの自動生成、書き込みの自動再試行、他DB対応、Domaの完全互換は提供しません。静的SQL断片のinclude・COPY・WAIT FOR LSNの公開APIも提供していません。</p>
 <h2 id="offline">このHTMLの使い方</h2>
 <p>このフォルダをそのまま取得し、<code>index.html</code> をブラウザで開いてください。ネットワークやビルドは不要です。左の検索で本文・API名・設定キーを探せます。JavaScriptを無効にしても本文とページ移動は利用できます。印刷時は本文中心のレイアウトになります。</p></article><aside class="toc" aria-label="このページの目次"><strong>このページ</strong><ul><li><a href="#features">このパッケージでできること</a></li><li><a href="#requirements">対応環境</a></li><li><a href="#reading">読み進め方</a></li><li><a href="#boundaries">アプリケーションが決めること</a></li><li><a href="#offline">このHTMLの使い方</a></li></ul></aside></div>
 <nav class="pagination" aria-label="前後のページ"><span></span><a href="getting-started.html">インストールと最初の実行 →</a></nav>
-<footer>Laravel-2Way-SQL 利用ガイド · 2026-10-16<br>実装基準（公開パッケージ）: <a href="https://github.com/soudai/Laravel-2Way-PostgreSQL/tree/24029728677daff64f025cb969c4e51095358993">2402972</a>。PostgreSQL 19正式版の検証は未完了。</footer>
+<footer>Laravel-2Way-PostgreSQL 利用ガイド · 更新日 2026-10-20<br><a href="https://github.com/soudai/Laravel-2Way-PostgreSQL/blob/main/LICENSE">MITライセンス</a> · <a href="postgresql-versions.html">対応環境と検証範囲</a>。PostgreSQL 19正式版の検証は未完了。</footer>
 </main></div>
 </body></html>

@@ -9,6 +9,7 @@ use Hft\TwoWaySql\Codegen\Definition\MethodDefinition;
 use Hft\TwoWaySql\Codegen\Definition\TypeNames;
 use Hft\TwoWaySql\Exception\ErrorCode;
 use Hft\TwoWaySql\Exception\SqlException;
+use Hft\TwoWaySql\Execution\QueryOperation;
 
 final class DaoGenerator
 {
@@ -63,7 +64,7 @@ final class DaoGenerator
         $call = $method->mode;
         $prefix = '';
         if ($method->resultClass !== null) {
-            $call .= 'As';
+            $call = QueryOperation::from($method->mode)->dtoMethod() ?? throw new SqlException(ErrorCode::Generation);
             $prefix = '\\'.$method->resultClass.'::class, ';
         }
         $expression = '$this->executor->'.$call.'('.$prefix.var_export($method->query->id, true).', '.$input.')';
